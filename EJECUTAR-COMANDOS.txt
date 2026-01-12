@@ -1,0 +1,85 @@
+═══════════════════════════════════════════════════════════
+  🚀 COMANDOS PARA EJECUTAR AHORA
+═══════════════════════════════════════════════════════════
+
+PASO 1: CONECTAR A GITHUB
+───────────────────────────────────────────────────────────
+
+1. Crea un repo en https://github.com/new
+   Nombre: fitgenius-ai
+   NO inicialices con README
+
+2. Copia estos 3 comandos y pégalos en PowerShell:
+
+   cd c:\xampp\htdocs\fitgenius-ai
+   git remote add origin https://github.com/TU_USUARIO/fitgenius-ai.git
+   git branch -M main
+   git push -u origin main
+
+Cambia TU_USUARIO por tu usuario de GitHub.
+
+═══════════════════════════════════════════════════════════
+
+PASO 2: DESPLEGAR EN RAILWAY
+───────────────────────────────────────────────────────────
+
+1. Ve a https://railway.app
+2. New Project → Deploy from GitHub
+3. Selecciona fitgenius-ai
+4. Railroad detectará que es Node.js
+5. Variables de entorno → Add Variable:
+
+   GEMINI_API_KEY = AIzaSyBZcPx4viYy7C7EVwT0bBr_x71qtCXR9Ck
+   RAILWAY_ENVIRONMENT = production
+   PORT = 3001
+
+6. Click en Deploy
+7. Espera 2-3 minutos
+
+═══════════════════════════════════════════════════════════
+
+PASO 3: VERIFICAR QUE FUNCIONA
+───────────────────────────────────────────────────────────
+
+En PowerShell, ejecuta:
+
+curl https://fitgenius-backend-production.up.railway.app/api/members
+
+Deberías ver algo como:
+[]
+
+Si ves eso = está funcionando ✅
+
+═══════════════════════════════════════════════════════════
+
+PASO 4: ACTUALIZAR NETLIFY
+───────────────────────────────────────────────────────────
+
+1. Ve a https://app.netlify.com
+2. Abre tu sitio FitGenius
+3. Site settings → Environment variables
+4. Asegúrate que exista:
+
+   VITE_API_URL = https://fitgenius-backend-production.up.railway.app/api
+
+5. Si no existe, agrégala
+6. Netlify se reconstruirá automáticamente
+
+═══════════════════════════════════════════════════════════
+
+PASO 5: ¡PRUEBA!
+───────────────────────────────────────────────────────────
+
+1. Abre https://fitgenius.netlify.app
+2. Inicia sesión
+3. Workout View → Generar Rutina
+4. Selecciona tipo y genera
+5. Espera 15-20 segundos
+6. RECARGA LA PÁGINA
+7. ¡La rutina sigue ahí! ✅
+
+═══════════════════════════════════════════════════════════
+
+¡LISTO! Tu app está en la nube. 🎉
+
+═══════════════════════════════════════════════════════════
