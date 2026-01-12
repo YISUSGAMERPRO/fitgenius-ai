@@ -29,16 +29,37 @@ app.use(express.json()); // Permite leer JSON en las peticiones
 // Configuración de la conexión a MySQL
 let db;
 
-// Construir URL de conexión automáticamente desde variables de Railway
+// Construir URL de conexión automáticamente desde variables de entorno
 function getConnectionConfig() {
-    // En producción (Railway), usar la URL conocida que funciona
+    // PRIORIDAD 1: Si existe DATABASE_URL, usar esa (Railway automáticamente la proporciona)
+    if (process.env.DATABASE_URL) {
+        console.log('📡 Conectando a Railway MySQL (DATABASE_URL)...');
+        return process.env.DATABASE_URL;
+    }
+    
+    // PRIORIDAD 2: Si está en producción, usar Railway directamente
     if (process.env.RAILWAY_ENVIRONMENT === 'production') {
-        console.log('📡 Conectando a Railway MySQL...');
+        console.log('📡 Conectando a Railway MySQL (URL Manual)...');
         return 'mysql://root:RyfUFsHvrSJwQmnIJFNBEwlMpSRduxJR@nozomi.proxy.rlwy.net:38903/railway';
     }
     
-    // En desarrollo local
-    console.log('📡 Usando configuración local');
+    // PRIORIDAD 3: Si existe DB_HOST, usar esos parámetros (permite flexibilidad)
+    if (process.env.DB_HOST) {
+        console.log('📡 Conectando a MySQL con variables de entorno...');
+        return {
+            host: process.env.DB_HOST,
+            port: process.env.DB_PORT || 3306,
+            user: process.env.DB_USER || 'root',
+            password: process.env.DB_PASSWORD || '',
+            database: process.env.DB_NAME || 'railway',
+            waitForConnections: true,
+            connectionLimit: 10,
+            queueLimit: 0
+        };
+    }
+    
+    // FALLBACK: Usar localhost (solo para desarrollo local)
+    console.log('📡 Usando configuración local XAMPP');
     return {
         host: 'localhost',
         port: 3306,
@@ -57,7 +78,11 @@ db = mysql.createConnection(connectionConfig);
 db.connect(err => {
     if (err) {
         console.error('❌ Error conectando a MySQL:', err.message);
-        console.log('Asegúrate de haber creado la base de datos y tener MySQL encendido.');
+        console.log('Revisa tu configuración de base de datos:');
+        console.log('  - DATABASE_URL');
+        console.log('  - DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME');
+        console.log('  - O configura MySQL en localhost');
+
         return;
     }
     console.log('✅ Conectado a la base de datos MySQL con éxito.');
