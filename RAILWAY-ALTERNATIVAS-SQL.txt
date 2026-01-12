@@ -1,0 +1,79 @@
+🔧 3 ALTERNATIVAS PARA EJECUTAR SQL EN RAILWAY
+
+========================================
+OPCIÓN 1: Usar Railway CLI (Más fácil)
+========================================
+
+1. Instala Railway CLI si no lo tienes:
+   https://railway.app/
+
+2. En PowerShell, ve a tu proyecto:
+   cd c:\xampp\htdocs\fitgenius-ai\server
+
+3. Ejecuta este comando:
+
+   railway run mysql -u root -pRyfUFsHvrSJwQmnIJFNBEwlMpSRduxJR -h nozomi.proxy.rlwy.net -P 38903 railway < update-railway-tables.sql
+
+4. Debería mostrar las 5 tablas (users, user_profiles, gym_members, workout_plans, diet_plans)
+
+========================================
+OPCIÓN 2: Conexión directa con MySQL (Windows)
+========================================
+
+1. Descarga MySQL Workbench:
+   https://www.mysql.com/products/workbench/
+
+2. Abre MySQL Workbench
+
+3. Click en "+" para nueva conexión
+
+4. Completa los datos:
+   - Connection Name: Railway Production
+   - Hostname: nozomi.proxy.rlwy.net
+   - Port: 38903
+   - Username: root
+   - Password: RyfUFsHvrSJwQmnIJFNBEwlMpSRduxJR
+
+5. Test Connection → OK
+
+6. Doble click para conectar
+
+7. Abre una nueva pestaña de Query:
+   File → New Query Tab
+
+8. Pega TODO el SQL del archivo update-railway-tables.sql
+
+9. Click en el rayo (⚡) para ejecutar
+
+========================================
+OPCIÓN 3: Buscar Query en Railway Web
+========================================
+
+Si Railway tiene interfaz de Query pero no la encuentras:
+
+1. Ve a https://railway.app
+2. Abre tu proyecto
+3. Click en MySQL (el servicio de base de datos)
+4. Busca una pestaña que diga:
+   - "Query" 
+   - "Database Query"
+   - "Query Editor"
+   - "SQL"
+   - O un icono de terminal {}
+
+Si no la encuentras, usa OPCIÓN 1 o OPCIÓN 2
+
+========================================
+OPCIÓN 4: Hacer que el servidor cree tablas automáticamente
+========================================
+
+Si prefieres, puedo modificar el servidor para que cree las tablas automáticamente.
+
+Escribe: "CREA LAS TABLAS AUTOMÁTICAMENTE"
+
+========================================
+
+RECOMENDACIÓN: Usa OPCIÓN 1 (Railway CLI)
+Es la más rápida y segura.
+
+¿Cuál prefieres intentar primero?

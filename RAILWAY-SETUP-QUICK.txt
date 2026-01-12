@@ -1,0 +1,99 @@
+📋 PASOS PARA ACTIVAR LA IA EN RAILWAY (5 MINUTOS)
+
+========================================
+PASO 1: AGREGAR VARIABLES (2 MINUTOS)
+========================================
+
+1. Ve a https://railway.app
+2. Abre tu proyecto "FitGenius"
+3. Click en el servicio "Backend" (Node.js, NO MySQL)
+4. Click en la pestaña "Variables"
+5. Haz click en "Add Variable"
+
+AGREGA ESTA VARIABLE 1:
+  Name: GEMINI_API_KEY
+  Value: AIzaSyBZcPx4viYy7C7EVwT0bBr_x71qtCXR9Ck
+
+6. Haz click nuevamente en "Add Variable"
+
+AGREGA ESTA VARIABLE 2:
+  Name: RAILWAY_ENVIRONMENT
+  Value: production
+
+✅ Railway se reiniciará automáticamente
+
+========================================
+PASO 2: CREAR TABLAS EN MYSQL (2 MINUTOS)
+========================================
+
+1. En Railway.app, click en el servicio "MySQL"
+2. Click en la pestaña "Query"
+3. Copia TODO el texto abajo y pégalo en la ventana de Query:
+
+------- COPIA DESDE AQUÍ -------
+
+USE railway;
+
+CREATE TABLE IF NOT EXISTS workout_plans (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    frequency VARCHAR(100),
+    estimated_duration VARCHAR(100),
+    difficulty VARCHAR(50),
+    duration_weeks INT,
+    plan_data JSON NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_workout (user_id),
+    INDEX idx_created (created_at)
+);
+
+CREATE TABLE IF NOT EXISTS diet_plans (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    total_calories_per_day INT,
+    plan_data JSON NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_diet (user_id),
+    INDEX idx_created_diet (created_at)
+);
+
+SHOW TABLES;
+
+------- COPIA HASTA AQUÍ -------
+
+4. Click en "Run Query"
+5. Deberías ver las nuevas tablas en la lista
+
+========================================
+PASO 3: VERIFICAR (1 MINUTO)
+========================================
+
+1. Abre https://fitgenius.netlify.app
+2. Inicia sesión
+3. Ve a "Workout View"
+4. Genera una RUTINA
+5. La rutina debe guardarse correctamente
+6. Recarga la página → la rutina sigue ahí ✅
+
+Haz lo mismo con "Diet View"
+
+========================================
+✅ ¡LISTO!
+========================================
+
+Tu app ahora tiene:
+✅ Rutinas generadas con IA
+✅ Dietas generadas con IA
+✅ Datos guardados automáticamente
+✅ Sincronización entre dispositivos
+
+Si algo falla, revisa los logs en Railway:
+Backend → Deployments → Ver logs
