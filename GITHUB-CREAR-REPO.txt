@@ -1,0 +1,22 @@
+🔴 ACCIÓN MANUAL EN GITHUB REQUERIDA
+=====================================
+
+ANTES de hacer push, necesitas crear el repositorio en GitHub:
+
+1. Ve a https://github.com/new
+2. Ingresa:
+   - Repository name: fitgenius-ai
+   - Description: FitGenius AI - Generador de rutinas y dietas con IA
+   - Public (elige lo que prefieras)
+   - NO marques "Initialize this repository with:"
+3. Click en "Create repository"
+
+LUEGO ejecuta este comando:
+
+cd c:\xampp\htdocs\fitgenius-ai
+git push -u origin main
+
+ESPERA: Si ves ventana de login, usa tu token de GitHub:
+- Ve a GitHub → Settings → Developer settings → Personal access tokens
+- Crea un nuevo token con permisos "repo"
+- Usa el token como contraseña cuando te pida credenciales
