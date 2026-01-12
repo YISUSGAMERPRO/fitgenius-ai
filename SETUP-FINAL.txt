@@ -1,0 +1,85 @@
+✅ SETUP FINAL - FITGENIUS AI CON GEMINI
+
+========================================
+EXCELENTES NOTICIAS
+========================================
+
+Ya TODO está configurado. Solo falta UN PASO en Railway.
+
+========================================
+PASO FINAL (1 MINUTO)
+========================================
+
+1. Ve a https://railway.app
+2. Abre tu proyecto "FitGenius"
+3. Click en el servicio "Backend" (Node.js)
+4. Click en la pestaña "Variables"
+5. Agrega ESTAS 2 VARIABLES:
+
+   Variable 1:
+     Name: GEMINI_API_KEY
+     Value: AIzaSyBZcPx4viYy7C7EVwT0bBr_x71qtCXR9Ck
+
+   Variable 2:
+     Name: RAILWAY_ENVIRONMENT
+     Value: production
+
+6. Espera 2 minutos a que Railway se reinicie
+
+========================================
+POR QUÉ ES TAN FÁCIL AHORA
+========================================
+
+El servidor ahora crea las tablas automáticamente.
+NO NECESITAS ejecutar SQL manualmente.
+
+Cuando se conecta a la base de datos:
+✅ Tabla "users" ✓
+✅ Tabla "user_profiles" ✓
+✅ Tabla "gym_members" ✓
+✅ Tabla "workout_plans" ✓ (NUEVA)
+✅ Tabla "diet_plans" ✓ (NUEVA)
+
+========================================
+VERIFICAR QUE FUNCIONA
+========================================
+
+1. Espera 2 minutos después de agregar variables
+2. Abre https://fitgenius.netlify.app
+3. Inicia sesión
+4. Ve a "Workout View"
+5. Click en "Generar Rutina"
+6. Selecciona tipo y genera
+7. Deberías ver una rutina completa
+8. RECARGA LA PÁGINA → la rutina sigue ahí ✅
+
+Haz lo mismo con "Diet View"
+
+========================================
+✅ ¡LISTO!
+========================================
+
+Tu aplicación ahora tiene:
+✅ Generación de rutinas con IA en el servidor
+✅ Generación de dietas con IA en el servidor
+✅ Datos guardados automáticamente
+✅ Datos que persisten entre sesiones
+✅ Funciona en cualquier dispositivo
+
+========================================
+¿PROBLEMAS?
+========================================
+
+Si ves error "Servicio de IA no disponible":
+1. Revisa que las variables estén en Railway
+2. Espera 2 minutos después de agregarlas
+3. Recarga la página
+
+Si ves otro error:
+1. Ve a Railway → Backend → Deployments
+2. Revisa los logs (Deployment Logs)
+3. Busca "error" en los logs
+
+========================================
+
+¡Completado! 🚀
