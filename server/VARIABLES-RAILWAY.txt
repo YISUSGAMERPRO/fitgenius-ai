@@ -1,0 +1,50 @@
+INSTRUCCIONES PARA AGREGAR VARIABLES EN RAILWAY
+================================================
+
+Ve a: https://railway.app
+
+1. Haz click en tu PROYECTO
+2. Haz click en el servicio BACKEND (NO MySQL)
+3. Ve a la pestaña "Variables"
+
+AGREGA EXACTAMENTE ESTAS 6 VARIABLES:
+(Click en "Add Variable" para cada una)
+
+Variable 1:
+  Name: DB_HOST
+  Value: turntable.proxy.rlwy.net
+
+Variable 2:
+  Name: DB_PORT
+  Value: 29961
+
+Variable 3:
+  Name: DB_USER
+  Value: root
+
+Variable 4:
+  Name: DB_PASSWORD
+  Value: ssSjLVRpbLgnKIRrnLLQVBoHaPQBcebf
+
+Variable 5:
+  Name: DB_NAME
+  Value: railway
+
+Variable 6:
+  Name: PORT
+  Value: 3001
+
+Variable 7:
+  Name: GEMINI_API_KEY
+  Value: AIzaSyBZcPx4viYy7C7EVwT0bBr_x71qtCXR9Ck
+
+Variable 8:
+  Name: RAILWAY_ENVIRONMENT
+  Value: production
+
+DESPUÉS DE AGREGAR TODAS:
+- Railway reiniciará automáticamente
+- Espera 1-2 minutos
+- Verifica los logs para confirmar que funcionó
+
+⚠️ IMPORTANTE: Las variables 7 y 8 son OBLIGATORIAS para que funcione la generación de rutinas y dietas con IA

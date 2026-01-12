@@ -1,0 +1,140 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+}
+
+/* Print Styles */
+@media print {
+  body {
+    background: white;
+    margin: 0;
+    padding: 0;
+  }
+
+  .print\:bg-white {
+    background-color: white !important;
+  }
+
+  .print\:p-0 {
+    padding: 0 !important;
+  }
+
+  .print\:shadow-none {
+    box-shadow: none !important;
+  }
+
+  .print\:gap-4 {
+    gap: 1rem !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print\:text-black {
+    color: black !important;
+  }
+
+  .print\:border-gray-300 {
+    border-color: rgb(209, 213, 219) !important;
+  }
+
+  /* Print-only sections */
+  .print-only {
+    display: none;
+  }
+
+  .print\:block {
+    display: block;
+  }
+
+  /* Page breaks */
+  .page-break {
+    page-break-after: always;
+  }
+
+  .page-break-inside-avoid {
+    page-break-inside: avoid;
+  }
+
+  /* Optimize charts and visuals for print */
+  svg {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Print-specific typography */
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+    page-break-inside: avoid;
+    margin-top: 0;
+  }
+
+  p {
+    page-break-inside: avoid;
+  }
+
+  /* Table improvements */
+  table {
+    page-break-inside: avoid;
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th, td {
+    border: 1px solid #999;
+    padding: 8px;
+    text-align: left;
+  }
+
+  th {
+    background-color: #e5e5e5 !important;
+    font-weight: bold;
+  }
+
+  tr {
+    page-break-inside: avoid;
+  }
+
+  /* Print table container */
+  .print-table-container {
+    color: black;
+    font-family: Arial, sans-serif;
+    line-height: 1.5;
+  }
+
+  .print-table-container h3 {
+    margin: 0 0 1rem 0;
+    border-bottom: 2px solid #000;
+    padding-bottom: 0.5rem;
+  }
+
+  .print-table-container h4 {
+    margin: 1rem 0 0.5rem 0;
+  }
+
+  .print-table-container h5 {
+    margin: 0.5rem 0 0.25rem 0;
+  }
+
+  .print-table-container table {
+    margin: 1rem 0;
+  }
+}
+
