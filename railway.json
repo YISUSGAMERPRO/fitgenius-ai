@@ -1,7 +1,14 @@
 {
+  "$schema": "https://railway.app/railway.schema.json",
   "name": "FitGenius AI",
   "description": "Generador de rutinas y dietas con Gemini AI",
   "template": "nodejs",
+  "build": {
+    "builder": "DOCKERFILE"
+  },
+  "deploy": {
+    "startCommand": "node server/server.js"
+  },
   "env": {
     "GEMINI_API_KEY": {
       "description": "API Key de Gemini",
