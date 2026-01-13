@@ -7,7 +7,7 @@
     "builder": "DOCKERFILE"
   },
   "deploy": {
-    "startCommand": "node server/server.js"
+    "startCommand": "node server.js"
   },
   "env": {
     "GEMINI_API_KEY": {
