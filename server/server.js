@@ -33,33 +33,34 @@ let db;
 function getConnectionConfig() {
     // PRIORIDAD 1: Si existe DATABASE_URL, usar esa (Railway automáticamente la proporciona)
     if (process.env.DATABASE_URL) {
-        console.log('📡 Conectando a Railway MySQL (DATABASE_URL)...');
+        console.log('📡 Conectando a Railway MySQL usando DATABASE_URL...');
+        console.log('DATABASE_URL:', process.env.DATABASE_URL.replace(/:[^:]*@/, ':****@'));
         return process.env.DATABASE_URL;
     }
     
-    // PRIORIDAD 2: Si está en producción, usar Railway directamente
-    if (process.env.RAILWAY_ENVIRONMENT === 'production') {
-        console.log('📡 Conectando a Railway MySQL (URL Manual)...');
-        return 'mysql://root:RyfUFsHvrSJwQmnIJFNBEwlMpSRduxJR@nozomi.proxy.rlwy.net:38903/railway';
-    }
-    
-    // PRIORIDAD 3: Si existe DB_HOST, usar esos parámetros (permite flexibilidad)
+    // PRIORIDAD 2: Si existe DB_HOST, usar esos parámetros (configuración manual)
     if (process.env.DB_HOST) {
-        console.log('📡 Conectando a MySQL con variables de entorno...');
+        console.log('📡 Conectando a MySQL con variables de entorno manuales...');
+        console.log('DB_HOST:', process.env.DB_HOST);
+        console.log('DB_PORT:', process.env.DB_PORT || 3306);
+        console.log('DB_USER:', process.env.DB_USER || 'root');
+        console.log('DB_NAME:', process.env.DB_NAME || 'railway');
         return {
             host: process.env.DB_HOST,
-            port: process.env.DB_PORT || 3306,
+            port: parseInt(process.env.DB_PORT) || 3306,
             user: process.env.DB_USER || 'root',
             password: process.env.DB_PASSWORD || '',
             database: process.env.DB_NAME || 'railway',
             waitForConnections: true,
             connectionLimit: 10,
-            queueLimit: 0
+            queueLimit: 0,
+            connectTimeout: 60000,
+            timezone: '+00:00'
         };
     }
     
     // FALLBACK: Usar localhost (solo para desarrollo local)
-    console.log('📡 Usando configuración local XAMPP');
+    console.log('📡 Usando configuración local XAMPP (desarrollo)');
     return {
         host: 'localhost',
         port: 3306,
@@ -78,14 +79,19 @@ db = mysql.createConnection(connectionConfig);
 db.connect(err => {
     if (err) {
         console.error('❌ Error conectando a MySQL:', err.message);
-        console.log('Revisa tu configuración de base de datos:');
-        console.log('  - DATABASE_URL');
-        console.log('  - DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME');
-        console.log('  - O configura MySQL en localhost');
-
+        console.error('Código de error:', err.code);
+        console.log('\n🔍 Revisa tu configuración de base de datos:');
+        console.log('  - DATABASE_URL (proporcionada por Railway automáticamente)');
+        console.log('  - O configura manualmente: DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME');
+        console.log('\n⚠️ Variables de entorno actuales:');
+        console.log('  DATABASE_URL:', process.env.DATABASE_URL ? 'Configurada ✓' : 'No configurada ✗');
+        console.log('  DB_HOST:', process.env.DB_HOST || 'No configurada');
+        console.log('  GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? 'Configurada ✓' : 'No configurada ✗');
+        console.log('  PORT:', process.env.PORT || PORT);
         return;
     }
     console.log('✅ Conectado a la base de datos MySQL con éxito.');
+    console.log('🗄️ Base de datos:', process.env.DB_NAME || 'railway');
     
     // Crear tablas automáticamente si no existen
     createTablesIfNotExist();
