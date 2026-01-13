@@ -1,6 +1,7 @@
 
 const express = require('express');
 const mysql = require('mysql2');
+const { Pool } = require('pg');
 const cors = require('cors');
 const compression = require('compression');
 const PDFDocument = require('pdfkit');
@@ -28,12 +29,15 @@ app.use(express.json()); // Permite leer JSON en las peticiones
 
 // Configuración de la conexión a MySQL
 let db;
+let usePostgres = false;
+let pgPool = null;
 
 // Construir URL de conexión automáticamente desde variables de entorno
 function getConnectionConfig() {
     // PRIORIDAD 1: Si existe DATABASE_URL, usar esa (Railway automáticamente la proporciona)
     if (process.env.DATABASE_URL) {
-        console.log('📡 Conectando a Railway MySQL usando DATABASE_URL...');
+        const isPg = process.env.DATABASE_URL.startsWith('postgres');
+        console.log(`📡 Conectando usando DATABASE_URL (${isPg ? 'PostgreSQL' : 'MySQL'})...`);
         console.log('DATABASE_URL:', process.env.DATABASE_URL.replace(/:[^:]*@/, ':****@'));
         return process.env.DATABASE_URL;
     }
@@ -43,6 +47,14 @@ function getConnectionConfig() {
         console.log('📡 Conectando a Railway MySQL usando MYSQL_URL...');
         console.log('MYSQL_URL:', process.env.MYSQL_URL.replace(/:[^:]*@/, ':****@'));
         return process.env.MYSQL_URL;
+    }
+    
+    // PRIORIDAD 1.6: Postgres explícito
+    if (process.env.PG_DATABASE_URL || process.env.POSTGRES_URL) {
+        const url = process.env.PG_DATABASE_URL || process.env.POSTGRES_URL;
+        console.log('📡 Conectando a PostgreSQL usando PG_DATABASE_URL/POSTGRES_URL...');
+        console.log('PG URL:', url.replace(/:[^:]*@/, ':****@'));
+        return url;
     }
     
     // PRIORIDAD 2: Si existe DB_HOST, usar esos parámetros (configuración manual)
@@ -81,118 +93,220 @@ function getConnectionConfig() {
 }
 
 const connectionConfig = getConnectionConfig();
-db = mysql.createConnection(connectionConfig);
 
-db.connect(err => {
-    if (err) {
-        console.error('❌ Error conectando a MySQL:', err.message);
-        console.error('Código de error:', err.code);
-        console.log('\n🔍 Revisa tu configuración de base de datos:');
-        console.log('  - DATABASE_URL (proporcionada por Railway automáticamente)');
-        console.log('  - O configura manualmente: DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME');
-        console.log('\n⚠️ Variables de entorno actuales:');
-        console.log('  DATABASE_URL:', process.env.DATABASE_URL ? 'Configurada ✓' : 'No configurada ✗');
-        console.log('  DB_HOST:', process.env.DB_HOST || 'No configurada');
-        console.log('  GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? 'Configurada ✓' : 'No configurada ✗');
-        console.log('  PORT:', process.env.PORT || PORT);
-        return;
-    }
-    console.log('✅ Conectado a la base de datos MySQL con éxito.');
-    console.log('🗄️ Base de datos:', process.env.DB_NAME || 'railway');
-    
-    // Crear tablas automáticamente si no existen
-    createTablesIfNotExist();
-});
+// Detectar driver según esquema
+if (typeof connectionConfig === 'string' && connectionConfig.startsWith('postgres')) {
+    usePostgres = true;
+    pgPool = new Pool({
+        connectionString: connectionConfig,
+        ssl: { rejectUnauthorized: false }
+    });
+    // Wrapper para uniformar interfaz
+    db = {
+        query: (sql, params, cb) => {
+            // Convertir ? a $1, $2, ...
+            let idx = 0;
+            const pgSql = sql.replace(/\?/g, () => `$${++idx}`);
+            pgPool.query(pgSql, params)
+                .then(result => cb(null, result.rows))
+                .catch(err => cb(err));
+        }
+    };
+    pgPool.connect()
+        .then(client => {
+            client.release();
+            console.log('✅ Conectado a la base de datos PostgreSQL con éxito.');
+            createTablesIfNotExist();
+        })
+        .catch(err => {
+            console.error('❌ Error conectando a PostgreSQL:', err.message);
+            console.log('PG connection string:', connectionConfig.replace(/:[^:]*@/, ':****@'));
+        });
+} else {
+    // MySQL por defecto
+    db = mysql.createConnection(connectionConfig);
+    db.connect(err => {
+        if (err) {
+            console.error('❌ Error conectando a MySQL:', err.message);
+            console.error('Código de error:', err.code);
+            console.log('\n🔍 Revisa tu configuración de base de datos:');
+            console.log('  - DATABASE_URL (proporcionada por Railway automáticamente)');
+            console.log('  - O configura manualmente: DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME');
+            console.log('\n⚠️ Variables de entorno actuales:');
+            console.log('  DATABASE_URL:', process.env.DATABASE_URL ? 'Configurada ✓' : 'No configurada ✗');
+            console.log('  DB_HOST:', process.env.DB_HOST || 'No configurada');
+            console.log('  GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? 'Configurada ✓' : 'No configurada ✗');
+            console.log('  PORT:', process.env.PORT || PORT);
+            return;
+        }
+        console.log('✅ Conectado a la base de datos MySQL con éxito.');
+        console.log('🗄️ Base de datos:', process.env.DB_NAME || 'railway');
+        createTablesIfNotExist();
+    });
+}
 
 // Función para crear tablas automáticamente
 function createTablesIfNotExist() {
-    const tables = [
-        `CREATE TABLE IF NOT EXISTS users (
-            id VARCHAR(36) PRIMARY KEY,
-            username VARCHAR(50) UNIQUE NOT NULL,
-            password VARCHAR(255) NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            INDEX idx_username (username)
-        )`,
-        
-        `CREATE TABLE IF NOT EXISTS user_profiles (
-            id VARCHAR(36) PRIMARY KEY,
-            user_id VARCHAR(36) UNIQUE NOT NULL,
-            name VARCHAR(100) NOT NULL,
-            age INT NOT NULL,
-            height DECIMAL(5,2) NOT NULL,
-            weight DECIMAL(5,2) NOT NULL,
-            gender ENUM('male', 'female', 'other') NOT NULL,
-            body_type VARCHAR(50) NOT NULL,
-            goal VARCHAR(100) NOT NULL,
-            activity_level VARCHAR(50) NOT NULL,
-            equipment JSON,
-            injuries TEXT,
-            is_cycle_tracking BOOLEAN DEFAULT FALSE,
-            last_period_start DATE,
-            cycle_length INT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-            INDEX idx_user_id (user_id)
-        )`,
-        
-        `CREATE TABLE IF NOT EXISTS gym_members (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(100) NOT NULL,
-            email VARCHAR(100),
-            phone VARCHAR(20),
-            plan VARCHAR(50) NOT NULL,
-            start_date DATE NOT NULL,
-            status ENUM('active', 'inactive', 'expired') DEFAULT 'active',
-            payment_amount DECIMAL(10,2),
-            last_payment_date DATE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            INDEX idx_status (status)
-        )`,
-        
-        `CREATE TABLE IF NOT EXISTS workout_plans (
-            id VARCHAR(36) PRIMARY KEY,
-            user_id VARCHAR(36) NOT NULL,
-            title VARCHAR(255) NOT NULL,
-            description TEXT,
-            frequency VARCHAR(100),
-            estimated_duration VARCHAR(100),
-            difficulty VARCHAR(50),
-            duration_weeks INT,
-            plan_data JSON NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-            INDEX idx_user_workout (user_id),
-            INDEX idx_created (created_at)
-        )`,
-        
-        `CREATE TABLE IF NOT EXISTS diet_plans (
-            id VARCHAR(36) PRIMARY KEY,
-            user_id VARCHAR(36) NOT NULL,
-            title VARCHAR(255) NOT NULL,
-            description TEXT,
-            total_calories_per_day INT,
-            plan_data JSON NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-            INDEX idx_user_diet (user_id),
-            INDEX idx_created_diet (created_at)
-        )`
-    ];
-
-    tables.forEach((tableSQL, index) => {
-        db.query(tableSQL, (err) => {
-            if (err) {
-                console.error(`❌ Error creando tabla ${index + 1}:`, err.message);
-            } else {
-                console.log(`✅ Tabla ${index + 1} verificada/creada correctamente`);
-            }
+    if (usePostgres) {
+        const tablesPg = [
+            `CREATE TABLE IF NOT EXISTS users (
+                id VARCHAR(36) PRIMARY KEY,
+                username VARCHAR(50) UNIQUE NOT NULL,
+                password VARCHAR(255) NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW()
+            )`,
+            `CREATE TABLE IF NOT EXISTS user_profiles (
+                id VARCHAR(36) PRIMARY KEY,
+                user_id VARCHAR(36) UNIQUE NOT NULL,
+                name VARCHAR(100) NOT NULL,
+                age INT NOT NULL,
+                height NUMERIC(5,2) NOT NULL,
+                weight NUMERIC(5,2) NOT NULL,
+                gender TEXT NOT NULL,
+                body_type VARCHAR(50) NOT NULL,
+                goal VARCHAR(100) NOT NULL,
+                activity_level VARCHAR(50) NOT NULL,
+                equipment JSONB,
+                injuries TEXT,
+                is_cycle_tracking BOOLEAN DEFAULT FALSE,
+                last_period_start DATE,
+                cycle_length INT,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW(),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )`,
+            `CREATE TABLE IF NOT EXISTS gym_members (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(100) NOT NULL,
+                email VARCHAR(100),
+                phone VARCHAR(20),
+                plan VARCHAR(50) NOT NULL,
+                start_date DATE,
+                status TEXT DEFAULT 'active',
+                last_payment_date DATE,
+                last_payment_amount NUMERIC(10,2),
+                subscription_end_date DATE,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            )`,
+            `CREATE TABLE IF NOT EXISTS workout_plans (
+                id VARCHAR(36) PRIMARY KEY,
+                user_id VARCHAR(36) NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                description TEXT,
+                frequency VARCHAR(100),
+                estimated_duration VARCHAR(100),
+                difficulty VARCHAR(50),
+                duration_weeks INT,
+                plan_data JSONB NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW(),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )`,
+            `CREATE TABLE IF NOT EXISTS diet_plans (
+                id VARCHAR(36) PRIMARY KEY,
+                user_id VARCHAR(36) NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                description TEXT,
+                total_calories_per_day INT,
+                plan_data JSONB NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW(),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )`
+        ];
+        tablesPg.forEach((sql, i) => {
+            pgPool.query(sql).then(() => {
+                console.log(`✅ Tabla ${i + 1} verificada/creada correctamente`);
+            }).catch(err => {
+                console.error(`❌ Error creando tabla ${i + 1}:`, err.message);
+            });
         });
-    });
+    } else {
+        const tables = [
+            `CREATE TABLE IF NOT EXISTS users (
+                id VARCHAR(36) PRIMARY KEY,
+                username VARCHAR(50) UNIQUE NOT NULL,
+                password VARCHAR(255) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_username (username)
+            )`,
+            `CREATE TABLE IF NOT EXISTS user_profiles (
+                id VARCHAR(36) PRIMARY KEY,
+                user_id VARCHAR(36) UNIQUE NOT NULL,
+                name VARCHAR(100) NOT NULL,
+                age INT NOT NULL,
+                height DECIMAL(5,2) NOT NULL,
+                weight DECIMAL(5,2) NOT NULL,
+                gender ENUM('male', 'female', 'other') NOT NULL,
+                body_type VARCHAR(50) NOT NULL,
+                goal VARCHAR(100) NOT NULL,
+                activity_level VARCHAR(50) NOT NULL,
+                equipment JSON,
+                injuries TEXT,
+                is_cycle_tracking BOOLEAN DEFAULT FALSE,
+                last_period_start DATE,
+                cycle_length INT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                INDEX idx_user_id (user_id)
+            )`,
+            `CREATE TABLE IF NOT EXISTS gym_members (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(100) NOT NULL,
+                email VARCHAR(100),
+                phone VARCHAR(20),
+                plan VARCHAR(50) NOT NULL,
+                start_date DATE NOT NULL,
+                status ENUM('active', 'inactive', 'expired') DEFAULT 'active',
+                last_payment_date DATE,
+                last_payment_amount DECIMAL(10,2),
+                subscription_end_date DATE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_status (status)
+            )`,
+            `CREATE TABLE IF NOT EXISTS workout_plans (
+                id VARCHAR(36) PRIMARY KEY,
+                user_id VARCHAR(36) NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                description TEXT,
+                frequency VARCHAR(100),
+                estimated_duration VARCHAR(100),
+                difficulty VARCHAR(50),
+                duration_weeks INT,
+                plan_data JSON NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                INDEX idx_user_workout (user_id),
+                INDEX idx_created (created_at)
+            )`,
+            `CREATE TABLE IF NOT EXISTS diet_plans (
+                id VARCHAR(36) PRIMARY KEY,
+                user_id VARCHAR(36) NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                description TEXT,
+                total_calories_per_day INT,
+                plan_data JSON NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                INDEX idx_user_diet (user_id),
+                INDEX idx_created_diet (created_at)
+            )`
+        ];
+        tables.forEach((tableSQL, index) => {
+            db.query(tableSQL, (err) => {
+                if (err) {
+                    console.error(`❌ Error creando tabla ${index + 1}:`, err.message);
+                } else {
+                    console.log(`✅ Tabla ${index + 1} verificada/creada correctamente`);
+                }
+            });
+        });
+    }
 }
 
 // Middleware de caché HTTP para respuestas GET (no usar en datos sensibles)
