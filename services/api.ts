@@ -119,16 +119,15 @@ export const api = {
 
     // --- PERFILES DE USUARIO ---
     getProfile: async (userId: string): Promise<UserProfile | null> => {
-        return getCachedOrFetch(`profile_${userId}`, async () => {
-            try {
-                const res = await fetch(`${API_BASE_URL}/profile/${userId}`);
-                if (!res.ok) return null;
-                return await res.json();
-            } catch (e) {
-                console.error("Error al obtener perfil:", e);
-                return null;
-            }
-        });
+        try {
+            // Parmetro anticapche para evitar respuestas cacheadas del navegador/CDN
+            const res = await fetch(`${API_BASE_URL}/profile/${userId}?t=${Date.now()}`);
+            if (!res.ok) return null;
+            return await res.json();
+        } catch (e) {
+            console.error("Error al obtener perfil:", e);
+            return null;
+        }
     },
 
     saveProfile: async (profile: UserProfile): Promise<boolean> => {

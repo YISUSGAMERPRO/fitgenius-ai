@@ -195,16 +195,22 @@ function createTablesIfNotExist() {
     });
 }
 
-// Middleware de caché HTTP para respuestas GET
+// Middleware de caché HTTP para respuestas GET (no usar en datos sensibles)
 const cacheControl = (req, res, next) => {
     res.set('Cache-Control', 'public, max-age=300'); // 5 minutos
+    next();
+};
+
+// Middleware para desactivar caché
+const noCache = (req, res, next) => {
+    res.set('Cache-Control', 'no-store');
     next();
 };
 
 // --- RUTAS DE LA API ---
 
 // 1. LOGIN DE USUARIOS
-app.post('/api/login', cacheControl, (req, res) => {
+app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     const sql = 'SELECT id, username, created_at FROM users WHERE username = ? AND password = ?';
     
@@ -275,7 +281,7 @@ app.delete('/api/members/:id', (req, res) => {
 // --- RUTAS DE PERFILES DE USUARIO ---
 
 // 6. OBTENER PERFIL DE USUARIO
-app.get('/api/profile/:userId', cacheControl, (req, res) => {
+app.get('/api/profile/:userId', noCache, (req, res) => {
     const { userId } = req.params;
     const sql = 'SELECT id, user_id, name, age, height, weight, gender, body_type, goal, activity_level, equipment, injuries, is_cycle_tracking, last_period_start, cycle_length FROM user_profiles WHERE user_id = ?';
     
@@ -291,6 +297,15 @@ app.get('/api/profile/:userId', cacheControl, (req, res) => {
                     profile.equipment = [];
                 }
             }
+            // Mapear género desde DB (inglés) a frontend (español)
+            const genderMapFromDb = {
+                male: 'Masculino',
+                female: 'Femenino',
+                other: 'Otro'
+            };
+            if (profile.gender && genderMapFromDb[profile.gender]) {
+                profile.gender = genderMapFromDb[profile.gender];
+            }
             res.json(profile);
         } else {
             res.status(404).json({ message: 'Perfil no encontrado' });
@@ -301,6 +316,14 @@ app.get('/api/profile/:userId', cacheControl, (req, res) => {
 // 7. GUARDAR O ACTUALIZAR PERFIL DE USUARIO
 app.post('/api/profile', (req, res) => {
     const { id, user_id, name, age, height, weight, gender, body_type, goal, activity_level, equipment, injuries, is_cycle_tracking, last_period_start, cycle_length } = req.body;
+    
+    // Mapear género desde frontend (español) a DB (inglés)
+    const genderMapToDb = {
+        'Masculino': 'male',
+        'Femenino': 'female',
+        'Otro': 'other'
+    };
+    const normalizedGender = genderMapToDb[gender] || 'other';
     
     // Verificar si el perfil ya existe
     const checkSql = 'SELECT id FROM user_profiles WHERE user_id = ?';
@@ -318,12 +341,12 @@ app.post('/api/profile', (req, res) => {
                 goal = ?, activity_level = ?, equipment = ?, injuries = ?, 
                 is_cycle_tracking = ?, last_period_start = ?, cycle_length = ?
                 WHERE user_id = ?`;
-            params = [name, age, height, weight, gender, body_type, goal, activity_level, JSON.stringify(equipment || []), injuries, is_cycle_tracking, last_period_start, cycle_length, user_id];
+            params = [name, age, height, weight, normalizedGender, body_type, goal, activity_level, JSON.stringify(equipment || []), injuries, is_cycle_tracking, last_period_start, cycle_length, user_id];
         } else {
             // INSERT
             sql = `INSERT INTO user_profiles (id, user_id, name, age, height, weight, gender, body_type, goal, activity_level, equipment, injuries, is_cycle_tracking, last_period_start, cycle_length)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-            params = [id, user_id, name, age, height, weight, gender, body_type, goal, activity_level, JSON.stringify(equipment || []), injuries, is_cycle_tracking, last_period_start, cycle_length];
+            params = [id, user_id, name, age, height, weight, normalizedGender, body_type, goal, activity_level, JSON.stringify(equipment || []), injuries, is_cycle_tracking, last_period_start, cycle_length];
         }
         
         db.query(sql, params, (err, result) => {
