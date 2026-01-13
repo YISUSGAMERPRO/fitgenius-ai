@@ -56,6 +56,14 @@ function getConnectionConfig() {
         console.log('PG URL:', url.replace(/:[^:]*@/, ':****@'));
         return url;
     }
+
+    // PRIORIDAD 1.7: Netlify Neon (variables de extensión)
+    if (process.env.NETLIFY_DATABASE_URL_UNPOOLED || process.env.NETLIFY_DATABASE_URL) {
+        const url = process.env.NETLIFY_DATABASE_URL_UNPOOLED || process.env.NETLIFY_DATABASE_URL;
+        console.log('📡 Conectando a PostgreSQL (Neon) usando NETLIFY_DATABASE_URL...');
+        console.log('NETLIFY DB URL:', url.replace(/:[^:]*@/, ':****@'));
+        return url;
+    }
     
     // PRIORIDAD 2: Si existe DB_HOST, usar esos parámetros (configuración manual)
     if (process.env.DB_HOST) {
