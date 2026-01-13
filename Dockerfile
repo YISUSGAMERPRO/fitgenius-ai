@@ -1,15 +1,15 @@
 FROM node:22-alpine
 
+WORKDIR /app
+
+# Copiar todo el proyecto
+COPY . .
+
+# Cambiar al directorio del servidor
 WORKDIR /app/server
 
-# Copiar solo el directorio server
-COPY server/package*.json ./
-
-# Instalar dependencias del backend
+# Instalar dependencias
 RUN npm install --production
-
-# Copiar el código del servidor
-COPY server/ ./
 
 # Exponer puerto
 EXPOSE 3001
