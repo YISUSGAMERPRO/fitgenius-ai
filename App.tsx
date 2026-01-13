@@ -9,7 +9,7 @@ import MedicalAssistantView from './components/MedicalAssistantView';
 import UserAuth from './components/UserAuth';
 import LandingPage from './components/LandingPage';
 import LoadingScreen from './components/LoadingScreen';
-import { Activity, Dumbbell, Utensils, Settings, LogOut, Stethoscope, LayoutDashboard } from 'lucide-react';
+import { Activity, Dumbbell, Utensils, Settings, LogOut, Stethoscope, LayoutDashboard, Menu, X } from 'lucide-react';
 import { api } from './services/api';
 
 type PortalType = 'landing' | 'user' | 'admin';
@@ -20,6 +20,7 @@ function App() {
   const [view, setView] = useState<ViewState>('calendar');
   const [isEditing, setIsEditing] = useState(false);
   const [portal, setPortal] = useState<PortalType>('landing');
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
   const handleViewChange = useCallback((newView: ViewState) => {
     setView(newView);
@@ -80,11 +81,51 @@ function App() {
           <button onClick={handleLogout} className="w-full text-left text-sm text-red-400 p-2 hover:bg-white/5 rounded-lg flex items-center gap-2"><LogOut className="w-4 h-4" /> Salir</button>
         </div>
       </aside>
-      <main className="flex-1 overflow-y-auto p-4 md:p-8">
-        {view === 'calendar' && <CalendarView userId={currentUserAccount!.id} onNavigate={handleViewChange} />}
-        {view === 'workout' && <WorkoutView user={user!} userId={currentUserAccount!.id} />}
-        {view === 'diet' && <DietView user={user!} userId={currentUserAccount!.id} />}
-        {view === 'medical' && <MedicalAssistantView user={user!} userId={currentUserAccount!.id} />}
+      <main className="flex-1 overflow-y-auto">
+        {/* Encabezado móvil */}
+        <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-white/10 bg-slate-900/50 sticky top-0 z-20">
+          <button className="flex items-center gap-2" onClick={() => setPortal('landing')}>
+            <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center shadow"><Activity className="text-white w-5 h-5" /></div>
+            <span className="text-white font-bold">FitGenius<span className="text-brand-400">AI</span></span>
+          </button>
+          <button aria-label="Abrir menú" onClick={() => setIsMobileNavOpen(true)} className="p-2 rounded-lg bg-white/5 text-white hover:bg-white/10 transition-colors">
+            <Menu className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="p-4 md:p-8">
+          {view === 'calendar' && <CalendarView userId={currentUserAccount!.id} onNavigate={handleViewChange} />}
+          {view === 'workout' && <WorkoutView user={user!} userId={currentUserAccount!.id} />}
+          {view === 'diet' && <DietView user={user!} userId={currentUserAccount!.id} />}
+          {view === 'medical' && <MedicalAssistantView user={user!} userId={currentUserAccount!.id} />}
+        </div>
+
+        {/* Drawer lateral móvil */}
+        <div className={`md:hidden fixed inset-0 z-30 ${isMobileNavOpen ? '' : 'pointer-events-none'}`}>
+          {/* Backdrop */}
+          <div
+            onClick={() => setIsMobileNavOpen(false)}
+            className={`absolute inset-0 bg-black/50 transition-opacity ${isMobileNavOpen ? 'opacity-100' : 'opacity-0'}`}
+          />
+          {/* Panel */}
+          <div className={`absolute top-0 left-0 h-full w-72 bg-slate-900/95 border-r border-white/10 backdrop-blur-sm transform transition-transform ${isMobileNavOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            <div className="p-4 flex items-center justify-between border-b border-white/10">
+              <span className="text-white font-bold">Menú</span>
+              <button aria-label="Cerrar menú" onClick={() => setIsMobileNavOpen(false)} className="p-2 rounded-lg bg-white/5 text-white hover:bg-white/10">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <nav className="px-3 py-4 space-y-2">
+              <NavButton active={view === 'calendar'} onClick={() => { handleViewChange('calendar'); setIsMobileNavOpen(false); }} icon={<LayoutDashboard />} label="Diario" />
+              <NavButton active={view === 'workout'} onClick={() => { handleViewChange('workout'); setIsMobileNavOpen(false); }} icon={<Dumbbell />} label="Rutinas" />
+              <NavButton active={view === 'diet'} onClick={() => { handleViewChange('diet'); setIsMobileNavOpen(false); }} icon={<Utensils />} label="Nutrición" />
+              <NavButton active={view === 'medical'} onClick={() => { handleViewChange('medical'); setIsMobileNavOpen(false); }} icon={<Stethoscope />} label="Médico" />
+            </nav>
+            <div className="p-3 border-t border-white/10 space-y-2">
+              <button onClick={() => { setIsEditing(true); setIsMobileNavOpen(false); }} className="w-full text-left text-sm text-slate-400 p-2 hover:bg-white/5 rounded-lg flex items-center gap-2"><Settings className="w-4 h-4" /> Perfil</button>
+              <button onClick={() => { handleLogout(); setIsMobileNavOpen(false); }} className="w-full text-left text-sm text-red-400 p-2 hover:bg-white/5 rounded-lg flex items-center gap-2"><LogOut className="w-4 h-4" /> Salir</button>
+            </div>
+          </div>
+        </div>
       </main>
     </div>
   );
