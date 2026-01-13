@@ -38,6 +38,13 @@ function getConnectionConfig() {
         return process.env.DATABASE_URL;
     }
     
+    // PRIORIDAD 1.5: Si existe MYSQL_URL (alternativa de Railway), usar esa
+    if (process.env.MYSQL_URL) {
+        console.log('📡 Conectando a Railway MySQL usando MYSQL_URL...');
+        console.log('MYSQL_URL:', process.env.MYSQL_URL.replace(/:[^:]*@/, ':****@'));
+        return process.env.MYSQL_URL;
+    }
+    
     // PRIORIDAD 2: Si existe DB_HOST, usar esos parámetros (configuración manual)
     if (process.env.DB_HOST) {
         console.log('📡 Conectando a MySQL con variables de entorno manuales...');
