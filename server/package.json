@@ -1,8 +1,8 @@
 {
   "name": "fitgenius-server",
   "version": "1.0.0",
-  "description": "Backend para FitGenius AI con MySQL",
-  "main": "server.js",
+  "description": "Backend para FitGenius AI con PostgreSQL Neon",
+  "main": "server-neon.js",
   "engines": {
     "node": ">=20.0.0"
   },

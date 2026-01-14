@@ -93,6 +93,133 @@ pool.on('connect', () => {
     console.log('✅ Conexión a Neon establecida');
 });
 
+// ========================================
+// INICIALIZAR TABLAS SI NO EXISTEN
+// ========================================
+async function initializeTables() {
+    try {
+        console.log('📋 Inicializando tablas...');
+
+        const tables = [
+            // Tabla users
+            `CREATE TABLE IF NOT EXISTS users (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                email VARCHAR(255) UNIQUE,
+                username VARCHAR(255),
+                password VARCHAR(255) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )`,
+
+            // Tabla user_profiles
+            `CREATE TABLE IF NOT EXISTS user_profiles (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id UUID NOT NULL,
+                name VARCHAR(255),
+                age INT,
+                weight DECIMAL(5,2),
+                height DECIMAL(5,2),
+                gender VARCHAR(20),
+                goal VARCHAR(255),
+                activity_level VARCHAR(100),
+                body_type VARCHAR(100),
+                equipment TEXT,
+                injuries TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )`,
+
+            // Tabla gym_members
+            `CREATE TABLE IF NOT EXISTS gym_members (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                name VARCHAR(255) NOT NULL,
+                plan VARCHAR(100),
+                status VARCHAR(50) DEFAULT 'Activo',
+                last_payment_date DATE,
+                last_payment_amount DECIMAL(10,2),
+                subscription_end_date DATE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )`,
+
+            // Tabla workout_plans
+            `CREATE TABLE IF NOT EXISTS workout_plans (
+                id VARCHAR(255) PRIMARY KEY,
+                user_id UUID NOT NULL,
+                title VARCHAR(255),
+                plan_data JSONB,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )`,
+
+            // Tabla diet_plans
+            `CREATE TABLE IF NOT EXISTS diet_plans (
+                id VARCHAR(255) PRIMARY KEY,
+                user_id UUID NOT NULL,
+                title VARCHAR(255),
+                plan_data JSONB,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )`
+        ];
+
+        // Ejecutar cada CREATE TABLE
+        for (const sql of tables) {
+            try {
+                await pool.query(sql);
+            } catch (err) {
+                if (err.code !== '42P07') { // 42P07 = relación ya existe
+                    console.error('❌ Error creando tabla:', err.message);
+                }
+            }
+        }
+
+        // Crear índices
+        const indices = [
+            'CREATE INDEX IF NOT EXISTS idx_user_profiles_user_id ON user_profiles(user_id)',
+            'CREATE INDEX IF NOT EXISTS idx_workout_plans_user_id ON workout_plans(user_id)',
+            'CREATE INDEX IF NOT EXISTS idx_diet_plans_user_id ON diet_plans(user_id)',
+            'CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)',
+            'CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)'
+        ];
+
+        for (const sql of indices) {
+            try {
+                await pool.query(sql);
+            } catch (err) {
+                // Ignorar si el índice ya existe
+            }
+        }
+
+        console.log('✅ Tablas inicializadas correctamente');
+    } catch (err) {
+        console.error('❌ Error inicializando tablas:', err.message);
+    }
+}
+
+// Ejecutar inicialización Y LUEGO iniciar servidor
+(async () => {
+    try {
+        await initializeTables();
+        console.log('✅ Base de datos lista');
+        
+        // Iniciar servidor después de la inicialización
+        const server = app.listen(PORT, () => {
+            console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
+            console.log(`📡 DATABASE_URL: ${process.env.DATABASE_URL ? 'Configurada ✅' : 'NO configurada ❌'}`);
+            console.log(`🤖 GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? 'Configurada ✅' : 'NO configurada ❌'}`);
+        });
+    } catch (err) {
+        console.error('❌ Fallo crítico en inicialización:', err);
+        process.exit(1);
+    }
+})();
+
+// Manejo de errores del pool
+
 // Health check inmediato
 app.get('/api/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
@@ -274,6 +401,35 @@ app.get('/api/members', async (req, res) => {
         res.json(result.rows);
     } catch (err) {
         console.error('Error en members:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Guardar miembro
+app.post('/api/members', async (req, res) => {
+    try {
+        const { id, name, plan, status, lastPaymentDate, lastPaymentAmount, subscriptionEndDate } = req.body;
+        
+        if (!id || !name) {
+            return res.status(400).json({ error: 'id y name son requeridos' });
+        }
+
+        console.log('💾 Guardando miembro:', { id, name, plan });
+
+        // Generar ID si no está proporcionado
+        const memberId = id || crypto.randomUUID();
+
+        const result = await pool.query(
+            `INSERT INTO gym_members (id, name, plan, status, last_payment_date, last_payment_amount, subscription_end_date, created_at) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+             RETURNING id`,
+            [memberId, name, plan || 'Estándar', status || 'Activo', lastPaymentDate || null, lastPaymentAmount || 0, subscriptionEndDate || null]
+        );
+
+        console.log('✅ Miembro guardado correctamente:', memberId);
+        res.status(201).json({ id: memberId, success: true, message: 'Miembro guardado correctamente' });
+    } catch (err) {
+        console.error('❌ Error guardando miembro:', err.message);
         res.status(500).json({ error: err.message });
     }
 });
@@ -540,13 +696,6 @@ app.post('/api/generate-diet', async (req, res) => {
         console.error('❌ Error:', err.message);
         res.status(500).json({ error: err.message });
     }
-});
-
-// Iniciar servidor
-const server = app.listen(PORT, () => {
-    console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
-    console.log(`📡 DATABASE_URL: ${process.env.DATABASE_URL ? 'Configurada ✅' : 'NO configurada ❌'}`);
-    console.log(`🤖 GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? 'Configurada ✅' : 'NO configurada ❌'}`);
 });
 
 // Manejo de errores no capturados
