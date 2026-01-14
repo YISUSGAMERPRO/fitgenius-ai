@@ -97,6 +97,32 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// Test de Gemini API
+app.get('/api/test-gemini', async (req, res) => {
+    if (!ai) {
+        return res.json({ status: 'error', message: 'Gemini no inicializado' });
+    }
+    
+    try {
+        console.log('🧪 Testeando Gemini API...');
+        const response = await ai.models.generateContent({
+            model: "gemini-2.0-flash-exp",
+            contents: "Escribe un JSON simple con un plan de entrenamiento básico de 1 día"
+        });
+        
+        console.log('Respuesta recibida:', response.text?.substring(0, 200));
+        
+        res.json({ 
+            status: 'ok', 
+            response: response.text?.substring(0, 500),
+            fullLength: response.text?.length
+        });
+    } catch (err) {
+        console.error('Error en test:', err.message);
+        res.status(500).json({ status: 'error', message: err.message });
+    }
+});
+
 // Login
 app.post('/api/login', async (req, res) => {
     try {
@@ -210,79 +236,59 @@ app.post('/api/generate-workout', async (req, res) => {
 
         console.log(`🤖 Generando rutina para usuario ${userId}, tipo: ${workoutType}`);
 
-        // Construir un prompt MÁS SIMPLE
-        const prompt = `Genera un plan de entrenamiento en formato JSON válido. El usuario es:
-        - Edad: ${profile.age}
-        - Objetivo: ${profile.goal}
-        - Tipo: ${workoutType}
-        
-        Responde SOLO con JSON sin explicaciones previas:
-        {
-          "title": "Plan ${workoutType}",
-          "description": "Un plan personalizado",
-          "frequency": "5 días/semana",
-          "estimatedDuration": "60 minutos",
-          "difficulty": "intermedio",
-          "durationWeeks": 4,
-          "recommendations": ["Descansar", "Hidratarse"],
-          "schedule": [
-            {"dayName": "Lunes", "focus": "Pecho", "exercises": [{"name": "Flexiones", "sets": 3, "reps": "10-12", "rest": "60s", "muscleGroup": "Pecho", "category": "main", "tempo": "2-0-1-0", "description": "Ejercicio básico", "tips": "Respira correctamente", "videoQuery": "flexiones"}]},
-            {"dayName": "Martes", "focus": "Espalda", "exercises": []},
-            {"dayName": "Miércoles", "focus": "Piernas", "exercises": []},
-            {"dayName": "Jueves", "focus": "Brazos", "exercises": []},
-            {"dayName": "Viernes", "focus": "Hombros", "exercises": []},
-            {"dayName": "Sábado", "focus": "Cardio", "exercises": []},
-            {"dayName": "Domingo", "focus": "Descanso", "exercises": []}
-          ]
-        }`;
+        // Prompt MUY simple para probar
+        const prompt = `Responde SOLO con JSON válido (sin explicaciones):
+{"title":"Plan ${workoutType}","description":"Plan personalizado","frequency":"5 días","estimatedDuration":"60 min","difficulty":"intermedio","durationWeeks":4,"recommendations":["Descansa bien","Hidratate"],"schedule":[{"dayName":"Lunes","focus":"Pecho","exercises":[{"name":"Flexiones","sets":3,"reps":"10-12","rest":"60s","muscleGroup":"Pecho","category":"main","tempo":"2-0-1-0","description":"Básico","tips":"Respira","videoQuery":"flexiones"}]},{"dayName":"Martes","focus":"Espalda","exercises":[]},{"dayName":"Miércoles","focus":"Piernas","exercises":[]},{"dayName":"Jueves","focus":"Brazos","exercises":[]},{"dayName":"Viernes","focus":"Hombros","exercises":[]},{"dayName":"Sábado","focus":"Cardio","exercises":[]},{"dayName":"Domingo","focus":"Descanso","exercises":[]}]}`;
 
-        // Llamar a Gemini SIN responseMimeType
-        console.log('📤 Llamando a Gemini API...');
+        console.log('📤 Llamando a Gemini...');
         const response = await ai.models.generateContent({
             model: "gemini-2.0-flash-exp",
             contents: prompt
         });
 
-        console.log('📥 Respuesta de Gemini recibida');
-        
         if (!response.text) {
-            console.error('❌ No se recibió texto en la respuesta:', response);
-            throw new Error('No se recibió respuesta de la IA');
+            throw new Error('Gemini no devolvió respuesta');
         }
 
-        console.log('🔍 Parseando JSON...');
+        console.log('📥 Respuesta recibida, primeros 200 chars:', response.text.substring(0, 200));
+
+        // Extraer JSON - buscar el primer { y el último }
+        const firstBrace = response.text.indexOf('{');
+        const lastBrace = response.text.lastIndexOf('}');
         
-        // Intentar encontrar JSON en la respuesta
-        let jsonText = response.text;
-        const jsonMatch = response.text.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-            jsonText = jsonMatch[0];
+        if (firstBrace === -1 || lastBrace === -1) {
+            console.error('❌ No se encontró JSON en la respuesta');
+            console.error('Respuesta completa:', response.text);
+            throw new Error('No se encontró JSON en la respuesta de Gemini');
         }
-        
+
+        const jsonText = response.text.substring(firstBrace, lastBrace + 1);
+        console.log('🔍 JSON extraído:', jsonText.substring(0, 150));
+
         let workoutPlan;
         try {
             workoutPlan = JSON.parse(jsonText);
         } catch (parseErr) {
-            console.error('❌ Error parseando JSON. Respuesta cruda:', response.text.substring(0, 500));
+            console.error('❌ Error parseando JSON:', parseErr.message);
+            console.error('JSON intentado:', jsonText.substring(0, 300));
             throw new Error(`Error parseando JSON: ${parseErr.message}`);
         }
 
         const planId = Date.now().toString();
 
-        // Guardar en la base de datos
-        console.log('💾 Guardando en base de datos...');
+        // Guardar en BD
+        console.log('💾 Guardando...');
         await pool.query(
             `INSERT INTO workout_plans (id, user_id, title, plan_data, created_at) 
              VALUES ($1, $2, $3, $4, NOW())`,
-            [planId, userId, workoutPlan.title || 'Plan de Entrenamiento', JSON.stringify(workoutPlan)]
+            [planId, userId, workoutPlan.title || 'Plan', JSON.stringify(workoutPlan)]
         );
 
-        console.log('✅ Rutina generada exitosamente');
+        console.log('✅ Rutina guardada');
         res.json({ ...workoutPlan, id: planId });
     } catch (err) {
-        console.error('❌ Error generando workout:', err.message);
-        console.error('Stack trace:', err.stack);
-        res.status(500).json({ error: err.message, details: err.stack });
+        console.error('❌ Error:', err.message);
+        res.status(500).json({ error: err.message });
     }
 });
 
@@ -293,7 +299,7 @@ app.post('/api/generate-diet', async (req, res) => {
     }
 
     try {
-        const { userId, profile, dietType, budget } = req.body;
+        const { userId, profile, dietType } = req.body;
         
         if (!userId || !profile || !dietType) {
             return res.status(400).json({ error: 'Faltan parámetros requeridos: userId, profile, dietType' });
@@ -301,85 +307,56 @@ app.post('/api/generate-diet', async (req, res) => {
 
         console.log(`🤖 Generando dieta para usuario ${userId}, tipo: ${dietType}`);
 
-        // Construir un prompt MÁS SIMPLE
-        const prompt = `Genera un plan nutricional en formato JSON válido. El usuario es:
-        - Edad: ${profile.age}
-        - Objetivo: ${profile.goal}
-        - Tipo de dieta: ${dietType}
-        
-        Responde SOLO con JSON sin explicaciones previas:
-        {
-          "title": "Plan ${dietType}",
-          "description": "Un plan nutricional personalizado",
-          "weeklyCalories": 2000,
-          "macros": {"protein": 30, "carbs": 40, "fats": 30},
-          "mealPlan": [
-            {
-              "day": "Lunes",
-              "meals": [
-                {"name": "Desayuno", "time": "7:00 AM", "items": ["Avena", "Miel"], "calories": 350, "macros": {"protein": 10, "carbs": 50, "fats": 8}},
-                {"name": "Almuerzo", "time": "1:00 PM", "items": ["Pollo", "Arroz"], "calories": 600, "macros": {"protein": 40, "carbs": 60, "fats": 10}},
-                {"name": "Cena", "time": "7:00 PM", "items": ["Pescado", "Vegetales"], "calories": 400, "macros": {"protein": 35, "carbs": 30, "fats": 12}}
-              ]
-            },
-            {"day": "Martes", "meals": []},
-            {"day": "Miércoles", "meals": []},
-            {"day": "Jueves", "meals": []},
-            {"day": "Viernes", "meals": []},
-            {"day": "Sábado", "meals": []},
-            {"day": "Domingo", "meals": []}
-          ],
-          "shoppingList": ["Pollo", "Arroz", "Vegetales", "Pescado"],
-          "tips": ["Hidratate bien", "Come despacio"]
-        }`;
+        // Prompt MUY simple
+        const prompt = `Responde SOLO con JSON válido (sin explicaciones):
+{"title":"Plan ${dietType}","description":"Plan nutricional","weeklyCalories":2000,"macros":{"protein":30,"carbs":40,"fats":30},"mealPlan":[{"day":"Lunes","meals":[{"name":"Desayuno","time":"7:00","items":["Avena","Leche"],"calories":350,"macros":{"protein":10,"carbs":50,"fats":8}},{"name":"Almuerzo","time":"13:00","items":["Pollo","Arroz"],"calories":600,"macros":{"protein":40,"carbs":60,"fats":10}},{"name":"Cena","time":"19:00","items":["Pescado","Verduras"],"calories":400,"macros":{"protein":35,"carbs":30,"fats":12}}]},{"day":"Martes","meals":[]},{"day":"Miércoles","meals":[]},{"day":"Jueves","meals":[]},{"day":"Viernes","meals":[]},{"day":"Sábado","meals":[]},{"day":"Domingo","meals":[]}],"shoppingList":["Pollo","Arroz","Pescado","Verduras"],"tips":["Hidratate","Come despacio"]}`;
 
-        // Llamar a Gemini SIN responseMimeType
-        console.log('📤 Llamando a Gemini API para dieta...');
+        console.log('📤 Llamando a Gemini...');
         const response = await ai.models.generateContent({
             model: "gemini-2.0-flash-exp",
             contents: prompt
         });
 
-        console.log('📥 Respuesta de Gemini recibida');
-        
         if (!response.text) {
-            console.error('❌ No se recibió texto en la respuesta:', response);
-            throw new Error('No se recibió respuesta de la IA');
+            throw new Error('Gemini no devolvió respuesta');
         }
 
-        console.log('🔍 Parseando JSON...');
+        console.log('📥 Respuesta recibida');
+
+        // Extraer JSON
+        const firstBrace = response.text.indexOf('{');
+        const lastBrace = response.text.lastIndexOf('}');
         
-        // Intentar encontrar JSON en la respuesta
-        let jsonText = response.text;
-        const jsonMatch = response.text.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-            jsonText = jsonMatch[0];
+        if (firstBrace === -1 || lastBrace === -1) {
+            console.error('❌ No se encontró JSON en la respuesta');
+            throw new Error('No se encontró JSON en la respuesta de Gemini');
         }
-        
+
+        const jsonText = response.text.substring(firstBrace, lastBrace + 1);
+
         let dietPlan;
         try {
             dietPlan = JSON.parse(jsonText);
         } catch (parseErr) {
-            console.error('❌ Error parseando JSON. Respuesta cruda:', response.text.substring(0, 500));
+            console.error('❌ Error parseando JSON:', parseErr.message);
             throw new Error(`Error parseando JSON: ${parseErr.message}`);
         }
 
         const planId = Date.now().toString();
 
-        // Guardar en la base de datos
-        console.log('💾 Guardando en base de datos...');
+        // Guardar en BD
+        console.log('💾 Guardando...');
         await pool.query(
             `INSERT INTO diet_plans (id, user_id, title, plan_data, created_at) 
              VALUES ($1, $2, $3, $4, NOW())`,
-            [planId, userId, dietPlan.title || 'Plan de Nutrición', JSON.stringify(dietPlan)]
+            [planId, userId, dietPlan.title || 'Plan', JSON.stringify(dietPlan)]
         );
 
-        console.log('✅ Dieta generada exitosamente');
+        console.log('✅ Dieta guardada');
         res.json({ ...dietPlan, id: planId });
     } catch (err) {
-        console.error('❌ Error generando diet:', err.message);
-        console.error('Stack trace:', err.stack);
-        res.status(500).json({ error: err.message, details: err.stack });
+        console.error('❌ Error:', err.message);
+        res.status(500).json({ error: err.message });
     }
 });
 
