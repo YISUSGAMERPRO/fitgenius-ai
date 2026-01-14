@@ -2,10 +2,22 @@ const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
 const compression = require('compression');
+const { GoogleGenAI } = require('@google/genai');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Inicializar Gemini AI
+const apiKey = process.env.GEMINI_API_KEY;
+let ai = null;
+
+if (!apiKey) {
+    console.warn('⚠️ GEMINI_API_KEY no está configurada. Las funciones de IA no estarán disponibles.');
+} else {
+    ai = new GoogleGenAI({ apiKey });
+    console.log('✅ Gemini AI inicializado correctamente');
+}
 
 // Middlewares
 app.use(cors());
@@ -130,10 +142,175 @@ app.get('/api/diets/:userId', async (req, res) => {
     }
 });
 
+// Generar rutina con IA
+app.post('/api/generate-workout', async (req, res) => {
+    if (!ai) {
+        return res.status(503).json({ error: 'Servicio de IA no disponible. Configura GEMINI_API_KEY en variables de entorno.' });
+    }
+
+    try {
+        const { userId, profile, workoutType } = req.body;
+        
+        if (!userId || !profile || !workoutType) {
+            return res.status(400).json({ error: 'Faltan parámetros requeridos: userId, profile, workoutType' });
+        }
+
+        console.log(`🤖 Generando rutina para usuario ${userId}, tipo: ${workoutType}`);
+
+        // Construir el prompt para Gemini
+        const prompt = `Eres un entrenador personal experto. Crea un plan de entrenamiento SEMANAL (7 días) tipo "${workoutType}" para:
+        - Edad: ${profile.age} años, Género: ${profile.gender}, Peso: ${profile.weight}kg, Altura: ${profile.height}cm
+        - Objetivo: ${profile.goal}
+        - Nivel de actividad: ${profile.activityLevel}
+        - Equipo disponible: ${(profile.equipment || []).join(', ') || 'Sin equipo específico'}
+        - Lesiones: ${profile.injuries || 'Ninguna'}
+        
+        GENERA EXACTAMENTE 7 DÍAS (Lunes a Domingo). 
+        Formato JSON estructura:
+        {
+          "title": "Nombre del plan",
+          "description": "Descripción",
+          "frequency": "5 veces por semana",
+          "estimatedDuration": "45-60 min",
+          "difficulty": "Intermedio",
+          "durationWeeks": 4,
+          "recommendations": ["Consejo 1", "Consejo 2"],
+          "schedule": [
+            {
+              "dayName": "Lunes",
+              "focus": "Pecho y Tríceps",
+              "exercises": [
+                {
+                  "name": "Flexiones",
+                  "sets": 3,
+                  "reps": "10-12",
+                  "rest": "60s",
+                  "muscleGroup": "Pecho",
+                  "category": "main",
+                  "tempo": "2-0-1-0",
+                  "description": "Ejercicio de pecho",
+                  "tips": "Mantén el core activado",
+                  "videoQuery": "Flexiones correctas"
+                }
+              ]
+            }
+          ]
+        }`;
+
+        // Llamar a Gemini
+        const response = await ai.models.generateContent({
+            model: "gemini-2.0-flash-exp",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                temperature: 0.7
+            }
+        });
+
+        if (!response.text) {
+            throw new Error('No se recibió respuesta de la IA');
+        }
+
+        const workoutPlan = JSON.parse(response.text);
+        const planId = Date.now().toString();
+
+        // Guardar en la base de datos
+        await pool.query(
+            `INSERT INTO workout_plans (id, user_id, title, plan_data, created_at) 
+             VALUES ($1, $2, $3, $4, NOW())`,
+            [planId, userId, workoutPlan.title || 'Plan de Entrenamiento', JSON.stringify(workoutPlan)]
+        );
+
+        res.json({ ...workoutPlan, id: planId });
+    } catch (err) {
+        console.error('Error generando workout:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Generar dieta con IA
+app.post('/api/generate-diet', async (req, res) => {
+    if (!ai) {
+        return res.status(503).json({ error: 'Servicio de IA no disponible. Configura GEMINI_API_KEY en variables de entorno.' });
+    }
+
+    try {
+        const { userId, profile, dietType, budget } = req.body;
+        
+        if (!userId || !profile || !dietType) {
+            return res.status(400).json({ error: 'Faltan parámetros requeridos: userId, profile, dietType' });
+        }
+
+        console.log(`🤖 Generando dieta para usuario ${userId}, tipo: ${dietType}`);
+
+        // Construir el prompt para Gemini
+        const prompt = `Eres un nutricionista experto. Crea un plan nutricional SEMANAL para:
+        - Edad: ${profile.age} años, Género: ${profile.gender}, Peso: ${profile.weight}kg, Altura: ${profile.height}cm
+        - Objetivo: ${profile.goal}
+        - Tipo de dieta: ${dietType}
+        - Presupuesto: ${budget || 'Sin límite'}
+        - Alergias/Restricciones: ${profile.restrictions || 'Ninguna'}
+        
+        Formato JSON esperado:
+        {
+          "title": "Nombre del plan",
+          "description": "Descripción",
+          "weeklyCalories": 2000,
+          "macros": {"protein": 30, "carbs": 40, "fats": 30},
+          "mealPlan": [
+            {
+              "day": "Lunes",
+              "meals": [
+                {
+                  "name": "Desayuno",
+                  "time": "7:00 AM",
+                  "items": ["Avena con miel"],
+                  "calories": 350,
+                  "macros": {"protein": 10, "carbs": 50, "fats": 8}
+                }
+              ]
+            }
+          ],
+          "shoppingList": ["Item 1", "Item 2"],
+          "tips": ["Consejo 1", "Consejo 2"]
+        }`;
+
+        // Llamar a Gemini
+        const response = await ai.models.generateContent({
+            model: "gemini-2.0-flash-exp",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                temperature: 0.7
+            }
+        });
+
+        if (!response.text) {
+            throw new Error('No se recibió respuesta de la IA');
+        }
+
+        const dietPlan = JSON.parse(response.text);
+        const planId = Date.now().toString();
+
+        // Guardar en la base de datos
+        await pool.query(
+            `INSERT INTO diet_plans (id, user_id, title, plan_data, created_at) 
+             VALUES ($1, $2, $3, $4, NOW())`,
+            [planId, userId, dietPlan.title || 'Plan de Nutrición', JSON.stringify(dietPlan)]
+        );
+
+        res.json({ ...dietPlan, id: planId });
+    } catch (err) {
+        console.error('Error generando diet:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Iniciar servidor
 const server = app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
     console.log(`📡 DATABASE_URL: ${process.env.DATABASE_URL ? 'Configurada ✅' : 'NO configurada ❌'}`);
+    console.log(`🤖 GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? 'Configurada ✅' : 'NO configurada ❌'}`);
 });
 
 // Manejo de errores no capturados
