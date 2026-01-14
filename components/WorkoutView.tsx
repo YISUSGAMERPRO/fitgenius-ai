@@ -168,10 +168,6 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
             setLoading(false);
         }
     };
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const handleSwapExercise = async (dayIdx: number, exerciseIdx: number) => {
         if (!plan) return;
