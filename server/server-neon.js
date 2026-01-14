@@ -124,13 +124,14 @@ app.get('/api/test-gemini', async (req, res) => {
     }
 });
 
-// Login
+// Login (soporta esquemas con email o username)
 app.post('/api/login', async (req, res) => {
     try {
         const { email, password } = req.body;
         
+        // Intentar con email o username (COALESCE) para compatibilidad de esquemas
         const result = await pool.query(
-            'SELECT id, email FROM users WHERE email = $1 AND password = $2 LIMIT 1',
+            'SELECT id, COALESCE(email, username) AS email FROM users WHERE (email = $1 OR username = $1) AND password = $2 LIMIT 1',
             [email, password]
         );
         
@@ -145,7 +146,7 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// Register
+// Register (soporta esquemas con email o username)
 app.post('/api/register', async (req, res) => {
     try {
         const { email, password, id } = req.body;
@@ -154,9 +155,9 @@ app.post('/api/register', async (req, res) => {
             return res.status(400).json({ error: 'Email y contraseña son requeridos' });
         }
         
-        // Verificar si el usuario ya existe
+        // Verificar si el usuario ya existe (email o username)
         const existingUser = await pool.query(
-            'SELECT id FROM users WHERE email = $1 LIMIT 1',
+            'SELECT id FROM users WHERE email = $1 OR username = $1 LIMIT 1',
             [email]
         );
         
@@ -164,12 +165,24 @@ app.post('/api/register', async (req, res) => {
             return res.status(409).json({ error: 'El email ya está registrado' });
         }
         
-        // Crear nuevo usuario
+        // Crear nuevo usuario; si no existe la columna email, usar username
         const userId = id || crypto.randomUUID();
-        await pool.query(
-            'INSERT INTO users (id, email, password, created_at) VALUES ($1, $2, $3, NOW())',
-            [userId, email, password]
-        );
+        try {
+            await pool.query(
+                'INSERT INTO users (id, email, password, created_at) VALUES ($1, $2, $3, NOW())',
+                [userId, email, password]
+            );
+        } catch (e) {
+            // Si falla por falta de columna email, intentar con username (compatibilidad)
+            if (e.code === '42703') {
+                await pool.query(
+                    'INSERT INTO users (id, username, password, created_at) VALUES ($1, $2, $3, NOW())',
+                    [userId, email, password]
+                );
+            } else {
+                throw e;
+            }
+        }
         
         console.log('✅ Usuario registrado:', { id: userId, email });
         res.json({ id: userId, email, success: true });
@@ -339,7 +352,7 @@ app.get('/api/admin/database-stats', async (req, res) => {
         stats.diets = parseInt(diets.rows[0].count);
         
         // Últimos 10 registros
-        const recentUsers = await pool.query('SELECT id, email, created_at FROM users ORDER BY created_at DESC LIMIT 10');
+        const recentUsers = await pool.query('SELECT id, COALESCE(email, username) AS email, created_at FROM users ORDER BY created_at DESC LIMIT 10');
         const recentWorkouts = await pool.query('SELECT id, user_id, title, created_at FROM workout_plans ORDER BY created_at DESC LIMIT 10');
         const recentDiets = await pool.query('SELECT id, user_id, title, created_at FROM diet_plans ORDER BY created_at DESC LIMIT 10');
         
