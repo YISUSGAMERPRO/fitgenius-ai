@@ -210,55 +210,37 @@ app.post('/api/generate-workout', async (req, res) => {
 
         console.log(`🤖 Generando rutina para usuario ${userId}, tipo: ${workoutType}`);
 
-        // Construir el prompt para Gemini
-        const prompt = `Eres un entrenador personal experto. Crea un plan de entrenamiento SEMANAL (7 días) tipo "${workoutType}" para:
-        - Edad: ${profile.age} años, Género: ${profile.gender}, Peso: ${profile.weight}kg, Altura: ${profile.height}cm
+        // Construir un prompt MÁS SIMPLE
+        const prompt = `Genera un plan de entrenamiento en formato JSON válido. El usuario es:
+        - Edad: ${profile.age}
         - Objetivo: ${profile.goal}
-        - Nivel de actividad: ${profile.activityLevel}
-        - Equipo disponible: ${(profile.equipment || []).join(', ') || 'Sin equipo específico'}
-        - Lesiones: ${profile.injuries || 'Ninguna'}
+        - Tipo: ${workoutType}
         
-        GENERA EXACTAMENTE 7 DÍAS (Lunes a Domingo). 
-        Formato JSON estructura:
+        Responde SOLO con JSON sin explicaciones previas:
         {
-          "title": "Nombre del plan",
-          "description": "Descripción",
-          "frequency": "5 veces por semana",
-          "estimatedDuration": "45-60 min",
-          "difficulty": "Intermedio",
+          "title": "Plan ${workoutType}",
+          "description": "Un plan personalizado",
+          "frequency": "5 días/semana",
+          "estimatedDuration": "60 minutos",
+          "difficulty": "intermedio",
           "durationWeeks": 4,
-          "recommendations": ["Consejo 1", "Consejo 2"],
+          "recommendations": ["Descansar", "Hidratarse"],
           "schedule": [
-            {
-              "dayName": "Lunes",
-              "focus": "Pecho y Tríceps",
-              "exercises": [
-                {
-                  "name": "Flexiones",
-                  "sets": 3,
-                  "reps": "10-12",
-                  "rest": "60s",
-                  "muscleGroup": "Pecho",
-                  "category": "main",
-                  "tempo": "2-0-1-0",
-                  "description": "Ejercicio de pecho",
-                  "tips": "Mantén el core activado",
-                  "videoQuery": "Flexiones correctas"
-                }
-              ]
-            }
+            {"dayName": "Lunes", "focus": "Pecho", "exercises": [{"name": "Flexiones", "sets": 3, "reps": "10-12", "rest": "60s", "muscleGroup": "Pecho", "category": "main", "tempo": "2-0-1-0", "description": "Ejercicio básico", "tips": "Respira correctamente", "videoQuery": "flexiones"}]},
+            {"dayName": "Martes", "focus": "Espalda", "exercises": []},
+            {"dayName": "Miércoles", "focus": "Piernas", "exercises": []},
+            {"dayName": "Jueves", "focus": "Brazos", "exercises": []},
+            {"dayName": "Viernes", "focus": "Hombros", "exercises": []},
+            {"dayName": "Sábado", "focus": "Cardio", "exercises": []},
+            {"dayName": "Domingo", "focus": "Descanso", "exercises": []}
           ]
         }`;
 
-        // Llamar a Gemini
+        // Llamar a Gemini SIN responseMimeType
         console.log('📤 Llamando a Gemini API...');
         const response = await ai.models.generateContent({
             model: "gemini-2.0-flash-exp",
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                temperature: 0.7
-            }
+            contents: prompt
         });
 
         console.log('📥 Respuesta de Gemini recibida');
@@ -269,11 +251,19 @@ app.post('/api/generate-workout', async (req, res) => {
         }
 
         console.log('🔍 Parseando JSON...');
+        
+        // Intentar encontrar JSON en la respuesta
+        let jsonText = response.text;
+        const jsonMatch = response.text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            jsonText = jsonMatch[0];
+        }
+        
         let workoutPlan;
         try {
-            workoutPlan = JSON.parse(response.text);
+            workoutPlan = JSON.parse(jsonText);
         } catch (parseErr) {
-            console.error('❌ Error parseando JSON. Respuesta:', response.text);
+            console.error('❌ Error parseando JSON. Respuesta cruda:', response.text.substring(0, 500));
             throw new Error(`Error parseando JSON: ${parseErr.message}`);
         }
 
@@ -311,47 +301,43 @@ app.post('/api/generate-diet', async (req, res) => {
 
         console.log(`🤖 Generando dieta para usuario ${userId}, tipo: ${dietType}`);
 
-        // Construir el prompt para Gemini
-        const prompt = `Eres un nutricionista experto. Crea un plan nutricional SEMANAL para:
-        - Edad: ${profile.age} años, Género: ${profile.gender}, Peso: ${profile.weight}kg, Altura: ${profile.height}cm
+        // Construir un prompt MÁS SIMPLE
+        const prompt = `Genera un plan nutricional en formato JSON válido. El usuario es:
+        - Edad: ${profile.age}
         - Objetivo: ${profile.goal}
         - Tipo de dieta: ${dietType}
-        - Presupuesto: ${budget || 'Sin límite'}
-        - Alergias/Restricciones: ${profile.restrictions || 'Ninguna'}
         
-        Formato JSON esperado:
+        Responde SOLO con JSON sin explicaciones previas:
         {
-          "title": "Nombre del plan",
-          "description": "Descripción",
+          "title": "Plan ${dietType}",
+          "description": "Un plan nutricional personalizado",
           "weeklyCalories": 2000,
           "macros": {"protein": 30, "carbs": 40, "fats": 30},
           "mealPlan": [
             {
               "day": "Lunes",
               "meals": [
-                {
-                  "name": "Desayuno",
-                  "time": "7:00 AM",
-                  "items": ["Avena con miel"],
-                  "calories": 350,
-                  "macros": {"protein": 10, "carbs": 50, "fats": 8}
-                }
+                {"name": "Desayuno", "time": "7:00 AM", "items": ["Avena", "Miel"], "calories": 350, "macros": {"protein": 10, "carbs": 50, "fats": 8}},
+                {"name": "Almuerzo", "time": "1:00 PM", "items": ["Pollo", "Arroz"], "calories": 600, "macros": {"protein": 40, "carbs": 60, "fats": 10}},
+                {"name": "Cena", "time": "7:00 PM", "items": ["Pescado", "Vegetales"], "calories": 400, "macros": {"protein": 35, "carbs": 30, "fats": 12}}
               ]
-            }
+            },
+            {"day": "Martes", "meals": []},
+            {"day": "Miércoles", "meals": []},
+            {"day": "Jueves", "meals": []},
+            {"day": "Viernes", "meals": []},
+            {"day": "Sábado", "meals": []},
+            {"day": "Domingo", "meals": []}
           ],
-          "shoppingList": ["Item 1", "Item 2"],
-          "tips": ["Consejo 1", "Consejo 2"]
+          "shoppingList": ["Pollo", "Arroz", "Vegetales", "Pescado"],
+          "tips": ["Hidratate bien", "Come despacio"]
         }`;
 
-        // Llamar a Gemini
+        // Llamar a Gemini SIN responseMimeType
         console.log('📤 Llamando a Gemini API para dieta...');
         const response = await ai.models.generateContent({
             model: "gemini-2.0-flash-exp",
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                temperature: 0.7
-            }
+            contents: prompt
         });
 
         console.log('📥 Respuesta de Gemini recibida');
@@ -362,11 +348,19 @@ app.post('/api/generate-diet', async (req, res) => {
         }
 
         console.log('🔍 Parseando JSON...');
+        
+        // Intentar encontrar JSON en la respuesta
+        let jsonText = response.text;
+        const jsonMatch = response.text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            jsonText = jsonMatch[0];
+        }
+        
         let dietPlan;
         try {
-            dietPlan = JSON.parse(response.text);
+            dietPlan = JSON.parse(jsonText);
         } catch (parseErr) {
-            console.error('❌ Error parseando JSON. Respuesta:', response.text);
+            console.error('❌ Error parseando JSON. Respuesta cruda:', response.text.substring(0, 500));
             throw new Error(`Error parseando JSON: ${parseErr.message}`);
         }
 
