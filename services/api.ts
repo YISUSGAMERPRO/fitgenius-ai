@@ -183,8 +183,9 @@ export const api = {
     // --- GENERACIÓN DE RUTINAS Y DIETAS CON IA ---
     generateWorkout: async (userId: string, profile: UserProfile, workoutType: string): Promise<any> => {
         try {
-            console.log('📤 Enviando solicitud de generación de rutina al servidor...');
-            const res = await fetch(`${API_BASE_URL}/generate-workout`, {
+            console.log('📤 Enviando solicitud de generación de rutina a Netlify Function...');
+            // Usar Netlify Function en lugar del servidor
+            const res = await fetch('/.netlify/functions/generate-workout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId, profile, workoutType })
@@ -192,41 +193,40 @@ export const api = {
             
             if (!res.ok) {
                 const error = await res.json();
-                console.error('❌ Error del servidor:', error);
+                console.error('❌ Error:', error);
                 throw new Error(error.error || 'Error al generar rutina');
             }
             
             const data = await res.json();
             console.log('✅ Rutina generada con éxito');
-            clearCache(`workout_${userId}`);
-            return data.plan;
+            return data;
         } catch (e) {
-            console.error("❌ Error al generar rutina:", e);
+            console.error('Error generando workout:', e);
             throw e;
         }
     },
 
-    generateDiet: async (userId: string, profile: UserProfile, dietType: string, preferences: string[] = [], budget?: any): Promise<any> => {
+    generateDiet: async (userId: string, profile: UserProfile, dietType: string, budget?: string): Promise<any> => {
         try {
-            console.log('📤 Enviando solicitud de generación de dieta al servidor...');
-            const res = await fetch(`${API_BASE_URL}/generate-diet`, {
+            console.log('📤 Enviando solicitud de generación de dieta a Netlify Function...');
+            // Usar Netlify Function en lugar del servidor
+            const res = await fetch('/.netlify/functions/generate-diet', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId, profile, dietType, preferences, budget })
+                body: JSON.stringify({ userId, profile, dietType, budget })
             });
             
             if (!res.ok) {
                 const error = await res.json();
-                console.error('❌ Error del servidor:', error);
+                console.error('❌ Error:', error);
                 throw new Error(error.error || 'Error al generar dieta');
             }
             
             const data = await res.json();
             console.log('✅ Dieta generada con éxito');
-            clearCache(`diet_${userId}`);
-            return data.plan;
+            return data;
         } catch (e) {
-            console.error("❌ Error al generar dieta:", e);
+            console.error('Error generando dieta:', e);
             throw e;
         }
     },
