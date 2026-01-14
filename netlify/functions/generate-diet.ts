@@ -1,5 +1,6 @@
 import { Handler } from '@netlify/functions';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { Pool } from 'pg';
 
 const handler: Handler = async (event) => {
   try {
@@ -93,6 +94,35 @@ Responde SOLO con el JSON, sin markdown, sin explicaciones.`;
       title: parsedPlan.title || dietType,
       startDate: new Date().toISOString()
     };
+    
+    // Intentar guardar en Neon
+    const databaseUrl = process.env.NETLIFY_DATABASE_URL_UNPOOLED;
+    if (databaseUrl && userId) {
+      try {
+        const pool = new Pool({
+          connectionString: databaseUrl,
+          ssl: { rejectUnauthorized: false }
+        });
+        
+        await pool.query(
+          `INSERT INTO diet_plans (id, user_id, title, description, plan_data, created_at)
+           VALUES ($1, $2, $3, $4, $5, NOW())
+           ON CONFLICT (id) DO UPDATE SET plan_data = $5`,
+          [
+            planId,
+            userId,
+            dietPlan.title || 'Plan de Dieta',
+            dietPlan.summary || '',
+            JSON.stringify(dietPlan)
+          ]
+        );
+        console.log('✅ Dieta guardada en Neon');
+        await pool.end();
+      } catch (dbErr) {
+        console.warn('⚠️ No se guardó en Neon:', dbErr);
+        // No es error fatal
+      }
+    }
     
     return {
       statusCode: 200,
