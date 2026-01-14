@@ -1,8 +1,13 @@
 [build]
   command = "npm run build"
   publish = "dist"
+  functions = "netlify/functions"
 
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+
+[functions]
+  external_node_modules = ["express", "pg", "cors", "@google/genai"]
+  node_bundler = "esbuild"

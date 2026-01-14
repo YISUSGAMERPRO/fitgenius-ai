@@ -942,6 +942,21 @@ app.get('/api/diet/:userId', cacheControl, (req, res) => {
     });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log(`🚀 Servidor backend corriendo en http://localhost:${PORT}`);
+});
+
+// Manejo de errores
+server.on('error', (err) => {
+    console.error('❌ Error del servidor:', err);
+    process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('❌ Promise rechazada sin manejar:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('❌ Excepción no capturada:', err);
+    process.exit(1);
 });
