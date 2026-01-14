@@ -1,12 +1,9 @@
 import { Handler } from '@netlify/functions';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { Pool } from 'pg';
 
 const handler: Handler = async (event) => {
-  let pool: Pool | null = null;
-  
   try {
-    const { userId, profile, dietType, preferences, budget } = JSON.parse(event.body || '{}');
+    const { userId, profile, dietType } = JSON.parse(event.body || '{}');
     
     if (!userId || !profile || !dietType) {
       return {
@@ -14,10 +11,6 @@ const handler: Handler = async (event) => {
         body: JSON.stringify({ error: 'Faltan parámetros' })
       };
     }
-    
-    console.log('🍽️ Generando dieta para usuario:', userId);
-    console.log('Preferencias:', preferences);
-    console.log('Presupuesto:', budget);
 
     const geminiApiKey = process.env.GEMINI_API_KEY;
     if (!geminiApiKey) {
@@ -27,35 +20,51 @@ const handler: Handler = async (event) => {
       };
     }
 
-    // Permitir múltiples nombres de variable de entorno usados por Netlify/Neon
-    const databaseUrl = process.env.VITE_API_DATABASE_URL 
-      || process.env.NETLIFY_DATABASE_URL_UNPOOLED 
-      || process.env.NETLIFY_DATABASE_URL 
-      || process.env.DATABASE_URL;
-    
-    console.log('🤖 Inicializando GoogleGenerativeAI...');
+    console.log('🍽️ Generando dieta', dietType);
     const genAI = new GoogleGenerativeAI(geminiApiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-    console.log('✅ Modelo Gemini cargado: gemini-2.0-flash-exp');
+`;
+
+    console.log('📮 Llamando Gemini...');
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
     
-    const prompt = `Eres un nutricionista profesional. Genera un plan de nutrición personalizado en SOLO JSON válido.
+    console.log('✅ Respuesta:', text?.substring(0, 100));
+    
+    if (!text) {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: 'Respuesta vacía de Gemini' })
+      };
+    }
 
-Datos del usuario:
-- Edad: ${profile.age}
-- Peso: ${profile.weight}kg
-- Altura: ${profile.height}cm
-- Género: ${profile.gender}
-- Objetivo: ${profile.goal}
-- Nivel de actividad: ${profile.activityLevel}
-- Tipo de cuerpo: ${profile.bodyType || 'No especificado'}
-- Restricciones/alergias: ${profile.injuries || 'Ninguna'}
-- Tipo de dieta solicitada: ${dietType}
-${preferences && preferences.length > 0 ? `- Preferencias alimenticias: ${preferences.join(', ')}` : ''}
-${budget ? `- Presupuesto diario aprox: $${budget}` : ''}
+    // Extraer JSON
+    let json = text;
+    const match = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (match) json = match[1];
+    else {
+      const start = text.indexOf('{');
+      const end = text.lastIndexOf('}');
+      if (start > -1 && end > -1) json = text.substring(start, end + 1);
+    }
 
-Genera un plan completo de 7 días con 3-4 comidas diarias balanceadas nutricionalmente. Personaliza según el objetivo, restricciones, preferencias y presupuesto.
+    const planId = Date.now().toString();
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ id: planId, title: dietType, plan: JSON.parse(json) })
+    };
+  } catch (error: any) {
+    console.error('❌ Error:', error?.message);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: error?.message || 'Error desconocido' })
+    };
+  }
+};
 
-Responde SOLO con JSON válido (sin explicaciones ni markdown):
+export { handler };
 {
   "title": "${dietType} - Plan Personalizado",
   "summary": "Plan de nutrición adaptado a tu perfil y objetivos",
