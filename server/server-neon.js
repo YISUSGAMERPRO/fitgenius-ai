@@ -318,6 +318,46 @@ app.get('/api/workouts/:userId', async (req, res) => {
     }
 });
 
+// ADMIN: Ver todas las tablas y estadísticas
+app.get('/api/admin/database-stats', async (req, res) => {
+    try {
+        const stats = {};
+        
+        // Contar usuarios
+        const users = await pool.query('SELECT COUNT(*) as count FROM users');
+        stats.users = parseInt(users.rows[0].count);
+        
+        // Contar perfiles
+        const profiles = await pool.query('SELECT COUNT(*) as count FROM user_profiles');
+        stats.profiles = parseInt(profiles.rows[0].count);
+        
+        // Contar rutinas
+        const workouts = await pool.query('SELECT COUNT(*) as count FROM workout_plans');
+        stats.workouts = parseInt(workouts.rows[0].count);
+        
+        // Contar dietas
+        const diets = await pool.query('SELECT COUNT(*) as count FROM diet_plans');
+        stats.diets = parseInt(diets.rows[0].count);
+        
+        // Últimos 10 registros
+        const recentUsers = await pool.query('SELECT id, username, created_at FROM users ORDER BY created_at DESC LIMIT 10');
+        const recentWorkouts = await pool.query('SELECT id, user_id, title, created_at FROM workout_plans ORDER BY created_at DESC LIMIT 10');
+        const recentDiets = await pool.query('SELECT id, user_id, title, created_at FROM diet_plans ORDER BY created_at DESC LIMIT 10');
+        
+        res.json({
+            stats,
+            recent: {
+                users: recentUsers.rows,
+                workouts: recentWorkouts.rows,
+                diets: recentDiets.rows
+            }
+        });
+    } catch (err) {
+        console.error('Error obteniendo stats:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Obtener dietas del usuario
 app.get('/api/diets/:userId', async (req, res) => {
     try {
