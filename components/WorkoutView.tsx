@@ -148,6 +148,12 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
             }
             
             console.log('✅ Plan recibido:', newPlan);
+            
+            // Validar que tiene la estructura correcta
+            if (!newPlan.schedule || !Array.isArray(newPlan.schedule) || newPlan.schedule.length === 0) {
+                throw new Error('Estructura inválida: falta schedule o está vacío');
+            }
+            
             newPlan.startDate = new Date().toISOString();
             setPlan(newPlan);
             localStorage.setItem(STORAGE_KEY_PLAN, JSON.stringify(newPlan));
@@ -158,6 +164,10 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
             const errorMsg = error instanceof Error ? error.message : String(error);
             console.error("❌ Error detallado:", error);
             alert(`Error generando rutina: ${errorMsg}`);
+        } finally {
+            setLoading(false);
+        }
+    };
         } finally {
             setLoading(false);
         }

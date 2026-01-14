@@ -206,6 +206,12 @@ const DietView: React.FC<Props> = ({ user, userId }) => {
       }
       
       console.log('✅ Plan de dieta recibido:', plan);
+      
+      // Validar que tiene la estructura correcta
+      if (!plan.schedule || !Array.isArray(plan.schedule) || plan.schedule.length === 0) {
+        throw new Error('Estructura inválida: falta schedule o está vacío');
+      }
+      
       // Inject start date to track the week accurately
       plan.startDate = new Date().toISOString();
 
