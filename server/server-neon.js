@@ -129,8 +129,9 @@ app.post('/api/login', async (req, res) => {
     try {
         const { email, password } = req.body;
         
+        // Intentar login con email como username
         const result = await pool.query(
-            'SELECT id, email FROM users WHERE email = $1 AND password = $2 LIMIT 1',
+            'SELECT id, username FROM users WHERE username = $1 AND password = $2 LIMIT 1',
             [email, password]
         );
         
@@ -138,7 +139,7 @@ app.post('/api/login', async (req, res) => {
             return res.status(401).json({ error: 'Credenciales inválidas' });
         }
         
-        res.json(result.rows[0]);
+        res.json({ id: result.rows[0].id, email: result.rows[0].username });
     } catch (err) {
         console.error('Error en login:', err.message);
         res.status(500).json({ error: err.message });
@@ -154,26 +155,27 @@ app.post('/api/register', async (req, res) => {
             return res.status(400).json({ error: 'Email y contraseña son requeridos' });
         }
         
-        // Verificar si el email ya existe
+        // Verificar si el usuario ya existe
         const existingUser = await pool.query(
-            'SELECT id FROM users WHERE email = $1 LIMIT 1',
+            'SELECT id FROM users WHERE username = $1 LIMIT 1',
             [email]
         );
         
         if (existingUser.rows.length > 0) {
-            return res.status(409).json({ error: 'El email ya está registrado' });
+            return res.status(409).json({ error: 'El usuario ya está registrado' });
         }
         
         // Crear nuevo usuario
         const userId = id || crypto.randomUUID();
         await pool.query(
-            'INSERT INTO users (id, email, password, created_at) VALUES ($1, $2, $3, NOW())',
+            'INSERT INTO users (id, username, password, created_at) VALUES ($1, $2, $3, NOW())',
             [userId, email, password]
         );
         
+        console.log('✅ Usuario registrado:', { id: userId, username: email });
         res.json({ id: userId, email, success: true });
     } catch (err) {
-        console.error('Error en registro:', err.message);
+        console.error('❌ Error en registro:', err.message);
         res.status(500).json({ error: err.message });
     }
 });
