@@ -2,15 +2,19 @@
   "name": "fitgenius-ai",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "engines": {
     "node": ">=20.0.0"
   },
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
     "@google/genai": "^1.35.0",
+    "axios": "^1.6.2",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
@@ -18,6 +22,15 @@
     "mysql2": "^3.9.7",
     "pg": "^8.12.0",
     "pg-connection-string": "^2.7.0",
-    "pdfkit": "^0.17.2"
+    "pdfkit": "^0.17.2",
+    "react": "^19.0.0-rc-66855b96c3-20241106",
+    "react-dom": "^19.0.0-rc-66855b96c3-20241106"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@vitejs/plugin-react": "^4.2.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.8"
   }
 }
