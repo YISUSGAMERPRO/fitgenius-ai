@@ -27,8 +27,47 @@ app.use(express.json());
 app.use(compression());
 
 // Conexión a Neon PostgreSQL
+console.log('📡 Buscando configuración de base de datos...');
+
+// Función para obtener la URL de conexión correcta
+function getDatabaseURL() {
+    // PRIORIDAD 1: DATABASE_URL estándar
+    if (process.env.DATABASE_URL) {
+        console.log('📡 Usando DATABASE_URL');
+        return process.env.DATABASE_URL;
+    }
+    
+    // PRIORIDAD 2: Netlify Neon (variables de extensión)
+    if (process.env.NETLIFY_DATABASE_URL_UNPOOLED) {
+        console.log('📡 Usando NETLIFY_DATABASE_URL_UNPOOLED');
+        return process.env.NETLIFY_DATABASE_URL_UNPOOLED;
+    }
+    
+    if (process.env.NETLIFY_DATABASE_URL) {
+        console.log('📡 Usando NETLIFY_DATABASE_URL');
+        return process.env.NETLIFY_DATABASE_URL;
+    }
+    
+    // PRIORIDAD 3: Postgres explícito
+    if (process.env.POSTGRES_URL) {
+        console.log('📡 Usando POSTGRES_URL');
+        return process.env.POSTGRES_URL;
+    }
+    
+    // FALLBACK
+    console.error('❌ No se encontró URL de base de datos en variables de entorno');
+    return null;
+}
+
+const DATABASE_URL = getDatabaseURL();
+
+if (!DATABASE_URL) {
+    console.error('❌ CRÍTICO: DATABASE_URL no está configurada');
+    process.exit(1);
+}
+
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: DATABASE_URL,
     ssl: { rejectUnauthorized: false }
 });
 
