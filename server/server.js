@@ -106,11 +106,26 @@ const connectionConfig = getConnectionConfig();
 if (typeof connectionConfig === 'string' && connectionConfig.startsWith('postgres')) {
     usePostgres = true;
     
-    // Crear Pool directamente sin parsear la URL manualmente
     try {
-        pgPool = new Pool({
-            connectionString: connectionConfig
+        // Parsear URL manualmente para evitar problemas con pg-connection-string
+        const urlObj = new URL(connectionConfig);
+        const pgConfig = {
+            user: urlObj.username,
+            password: urlObj.password,
+            host: urlObj.hostname,
+            port: urlObj.port || 5432,
+            database: urlObj.pathname.substring(1), // Remover el '/' inicial
+            ssl: { rejectUnauthorized: false }
+        };
+        
+        console.log('📡 PostgreSQL Config:', {
+            user: pgConfig.user,
+            host: pgConfig.host,
+            port: pgConfig.port,
+            database: pgConfig.database
         });
+        
+        pgPool = new Pool(pgConfig);
         
         // Wrapper para uniformar interfaz
         db = {
@@ -132,7 +147,6 @@ if (typeof connectionConfig === 'string' && connectionConfig.startsWith('postgre
             })
             .catch(err => {
                 console.error('❌ Error conectando a PostgreSQL:', err.message);
-                console.log('PG connection string (masked):', connectionConfig.substring(0, 50) + '...');
             });
     } catch (err) {
         console.error('❌ Error inicializando PostgreSQL Pool:', err.message);
