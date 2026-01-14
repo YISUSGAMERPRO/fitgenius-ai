@@ -203,13 +203,16 @@ app.get('/api/profile/:userId', async (req, res) => {
 app.post('/api/profile', async (req, res) => {
     try {
         const profile = req.body;
-        const { user_id, age, weight, height, gender, goal, activityLevel, bodyType, equipment, injuries } = profile;
+        const { user_id, name, age, weight, height, gender, goal, activityLevel, bodyType, equipment, injuries } = profile;
         
         if (!user_id) {
             return res.status(400).json({ error: 'user_id es requerido' });
         }
         
+        const validatedName = name || 'Usuario';
+        
         console.log('💾 Guardando perfil para usuario:', user_id);
+        console.log('📊 Datos recibidos:', { user_id, name: validatedName, age, weight, height, gender, goal });
         
         // Verificar si el perfil ya existe
         const existing = await pool.query(
@@ -221,11 +224,11 @@ app.post('/api/profile', async (req, res) => {
             // Actualizar perfil existente
             await pool.query(
                 `UPDATE user_profiles SET 
-                    age = $1, weight = $2, height = $3, gender = $4, 
-                    goal = $5, activity_level = $6, body_type = $7, 
-                    equipment = $8, injuries = $9, updated_at = NOW()
-                 WHERE user_id = $10`,
-                [age, weight, height, gender, goal, activityLevel, bodyType, 
+                    name = $1, age = $2, weight = $3, height = $4, gender = $5, 
+                    goal = $6, activity_level = $7, body_type = $8, 
+                    equipment = $9, injuries = $10, updated_at = NOW()
+                 WHERE user_id = $11`,
+                [validatedName, age, weight, height, gender, goal, activityLevel, bodyType, 
                  JSON.stringify(equipment), injuries, user_id]
             );
             console.log('✅ Perfil actualizado');
@@ -234,18 +237,18 @@ app.post('/api/profile', async (req, res) => {
             const profileId = crypto.randomUUID();
             await pool.query(
                 `INSERT INTO user_profiles 
-                    (id, user_id, age, weight, height, gender, goal, activity_level, 
+                    (id, user_id, name, age, weight, height, gender, goal, activity_level, 
                      body_type, equipment, injuries, created_at, updated_at)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())`,
-                [profileId, user_id, age, weight, height, gender, goal, activityLevel, 
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())`,
+                [profileId, user_id, validatedName, age, weight, height, gender, goal, activityLevel, 
                  bodyType, JSON.stringify(equipment), injuries]
             );
-            console.log('✅ Perfil creado');
+            console.log('✅ Perfil creado correctamente');
         }
         
-        res.json({ success: true });
+        res.json({ success: true, message: 'Perfil guardado correctamente' });
     } catch (err) {
-        console.error('Error guardando perfil:', err.message);
+        console.error('❌ Error guardando perfil:', err.message);
         res.status(500).json({ error: err.message });
     }
 });
