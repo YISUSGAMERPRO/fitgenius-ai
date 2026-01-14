@@ -8,8 +8,8 @@ COPY server/package*.json ./
 # Instalar dependencias
 RUN npm ci --production
 
-# Copiar server.js desde la raíz
-COPY server.js .
+# Copiar server.js desde el servidor
+COPY server/server.js .
 
 # Variables de entorno
 ENV NODE_ENV=production
