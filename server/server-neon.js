@@ -129,9 +129,8 @@ app.post('/api/login', async (req, res) => {
     try {
         const { email, password } = req.body;
         
-        // Intentar login con email como username
         const result = await pool.query(
-            'SELECT id, username FROM users WHERE username = $1 AND password = $2 LIMIT 1',
+            'SELECT id, email FROM users WHERE email = $1 AND password = $2 LIMIT 1',
             [email, password]
         );
         
@@ -139,7 +138,7 @@ app.post('/api/login', async (req, res) => {
             return res.status(401).json({ error: 'Credenciales inválidas' });
         }
         
-        res.json({ id: result.rows[0].id, email: result.rows[0].username });
+        res.json({ id: result.rows[0].id, email: result.rows[0].email });
     } catch (err) {
         console.error('Error en login:', err.message);
         res.status(500).json({ error: err.message });
@@ -157,22 +156,22 @@ app.post('/api/register', async (req, res) => {
         
         // Verificar si el usuario ya existe
         const existingUser = await pool.query(
-            'SELECT id FROM users WHERE username = $1 LIMIT 1',
+            'SELECT id FROM users WHERE email = $1 LIMIT 1',
             [email]
         );
         
         if (existingUser.rows.length > 0) {
-            return res.status(409).json({ error: 'El usuario ya está registrado' });
+            return res.status(409).json({ error: 'El email ya está registrado' });
         }
         
         // Crear nuevo usuario
         const userId = id || crypto.randomUUID();
         await pool.query(
-            'INSERT INTO users (id, username, password, created_at) VALUES ($1, $2, $3, NOW())',
+            'INSERT INTO users (id, email, password, created_at) VALUES ($1, $2, $3, NOW())',
             [userId, email, password]
         );
         
-        console.log('✅ Usuario registrado:', { id: userId, username: email });
+        console.log('✅ Usuario registrado:', { id: userId, email });
         res.json({ id: userId, email, success: true });
     } catch (err) {
         console.error('❌ Error en registro:', err.message);
@@ -340,7 +339,7 @@ app.get('/api/admin/database-stats', async (req, res) => {
         stats.diets = parseInt(diets.rows[0].count);
         
         // Últimos 10 registros
-        const recentUsers = await pool.query('SELECT id, username, created_at FROM users ORDER BY created_at DESC LIMIT 10');
+        const recentUsers = await pool.query('SELECT id, email, created_at FROM users ORDER BY created_at DESC LIMIT 10');
         const recentWorkouts = await pool.query('SELECT id, user_id, title, created_at FROM workout_plans ORDER BY created_at DESC LIMIT 10');
         const recentDiets = await pool.query('SELECT id, user_id, title, created_at FROM diet_plans ORDER BY created_at DESC LIMIT 10');
         
