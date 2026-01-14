@@ -50,10 +50,20 @@ const handler: Handler = async (event) => {
     }
 
     const planId = Date.now().toString();
+    const parsedPlan = JSON.parse(json);
+    
+    // Asegurar que tiene la estructura esperada
+    const dietPlan = {
+      id: planId,
+      ...parsedPlan,
+      title: parsedPlan.title || dietType,
+      startDate: new Date().toISOString()
+    };
+    
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify({ id: planId, title: dietType, plan: JSON.parse(json) })
+      body: JSON.stringify(dietPlan)
     };
   } catch (error: any) {
     console.error('❌ Error:', error?.message);
