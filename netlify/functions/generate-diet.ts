@@ -25,41 +25,10 @@ const handler: Handler = async (event) => {
     const genAI = new GoogleGenerativeAI(geminiApiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
     
-    const prompt = `
-Genera SOLO JSON válido (sin explicaciones) para un plan de dieta de 7 días con esta estructura EXACTA:
-{
-  "title": "Tipo de dieta",
-  "summary": "Descripción breve del plan nutricional",
-  "dailyTargets": {
-    "protein": 150,
-    "carbs": 200,
-    "fats": 60,
-    "calories": 2200
-  },
-  "schedule": [
-    {
-      "day": "Lunes",
-      "meals": [
-        {
-          "name": "Desayuno",
-          "description": "Descripción del plato",
-          "ingredients": ["Ingrediente 1", "Ingrediente 2"],
-          "calories": 350,
-          "protein": 25,
-          "carbs": 40,
-          "fats": 8
-        }
-      ]
-    }
-  ],
-  "scientificBasis": ["Principio 1", "Principio 2"],
-  "hydrationRecommendation": "Bebe 3-4 litros de agua diaria"
-}
-
-Usuario: objetivo = ${profile.goal}
-Tipo de dieta: ${dietType}
-
-Responde SOLO con el JSON, sin markdown, sin explicaciones.`;
+    const prompt = `Genera SOLO JSON válido para un plan de dieta de 7 días con campos: title, summary, dailyTargets: {protein, carbs, fats, calories}, schedule: [{day, meals: [{name, description, ingredients: [], calories, protein, carbs, fats}]}], scientificBasis: [], hydrationRecommendation. 
+Objetivo: ${profile.goal}
+Tipo: ${dietType}
+Responde SOLO con JSON, sin markdown, sin explicaciones.`;
     
     console.log('📮 Llamando Gemini...');
     const result = await model.generateContent(prompt);
