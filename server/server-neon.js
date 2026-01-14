@@ -178,6 +178,78 @@ app.post('/api/register', async (req, res) => {
     }
 });
 
+// Obtener perfil de usuario
+app.get('/api/profile/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        const result = await pool.query(
+            'SELECT * FROM user_profiles WHERE user_id = $1 LIMIT 1',
+            [userId]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Perfil no encontrado' });
+        }
+        
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('Error obteniendo perfil:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Guardar/Actualizar perfil de usuario
+app.post('/api/profile', async (req, res) => {
+    try {
+        const profile = req.body;
+        const { user_id, age, weight, height, gender, goal, activityLevel, bodyType, equipment, injuries } = profile;
+        
+        if (!user_id) {
+            return res.status(400).json({ error: 'user_id es requerido' });
+        }
+        
+        console.log('💾 Guardando perfil para usuario:', user_id);
+        
+        // Verificar si el perfil ya existe
+        const existing = await pool.query(
+            'SELECT id FROM user_profiles WHERE user_id = $1 LIMIT 1',
+            [user_id]
+        );
+        
+        if (existing.rows.length > 0) {
+            // Actualizar perfil existente
+            await pool.query(
+                `UPDATE user_profiles SET 
+                    age = $1, weight = $2, height = $3, gender = $4, 
+                    goal = $5, activity_level = $6, body_type = $7, 
+                    equipment = $8, injuries = $9, updated_at = NOW()
+                 WHERE user_id = $10`,
+                [age, weight, height, gender, goal, activityLevel, bodyType, 
+                 JSON.stringify(equipment), injuries, user_id]
+            );
+            console.log('✅ Perfil actualizado');
+        } else {
+            // Crear nuevo perfil
+            const profileId = crypto.randomUUID();
+            await pool.query(
+                `INSERT INTO user_profiles 
+                    (id, user_id, age, weight, height, gender, goal, activity_level, 
+                     body_type, equipment, injuries, created_at, updated_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())`,
+                [profileId, user_id, age, weight, height, gender, goal, activityLevel, 
+                 bodyType, JSON.stringify(equipment), injuries]
+            );
+            console.log('✅ Perfil creado');
+        }
+        
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Error guardando perfil:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Obtener miembros
 app.get('/api/members', async (req, res) => {
     try {
