@@ -677,7 +677,7 @@ const DietView: React.FC<Props> = ({ user, userId }) => {
                         <h3 className="font-bold text-white">Evidencia Científica</h3>
                      </div>
                      <ul className="space-y-3">
-                        {diet.scientificBasis.map((source, idx) => (
+                        {(diet?.scientificBasis || []).map((source, idx) => (
                             <li key={idx} className="text-xs text-slate-400 flex items-start gap-2 leading-relaxed">
                                 <span className="bg-slate-800 text-slate-300 rounded-full w-4 h-4 flex items-center justify-center flex-shrink-0 text-[9px] mt-0.5 border border-slate-700">{idx + 1}</span>
                                 {source}
@@ -715,10 +715,10 @@ const DietView: React.FC<Props> = ({ user, userId }) => {
                 </div>
 
                 {/* Day Selector Tabs */}
-                {diet.schedule && diet.schedule.length > 0 && (
+                {(diet?.schedule || []).length > 0 && (
                     <div className="no-print" style={{scrollbarColor: '#475569 transparent', overflowX: 'auto'}}>
                          <div className="flex gap-3 pb-2 snap-x">
-                            {diet.schedule.map((day, idx) => (
+                            {(diet?.schedule || []).map((day, idx) => (
                                 <button
                                     key={idx}
                                     onClick={() => setSelectedDayIndex(idx)}
@@ -747,7 +747,7 @@ const DietView: React.FC<Props> = ({ user, userId }) => {
                         {printFrequency === 'diaria' && (
                             <div>
                                 <h4 className="text-lg font-bold mb-4 text-black">Menú del Día: {diet.schedule?.[selectedDayIndex]?.day || 'Día Estándar'}</h4>
-                                {currentDayMeals?.map((meal, idx) => (
+                                {(currentDayMeals || []).map((meal, idx) => (
                                     <div key={idx} className="mb-6 page-break-inside-avoid">
                                         <table className="w-full border-collapse border border-gray-400 mb-4">
                                             <thead>
@@ -845,7 +845,7 @@ const DietView: React.FC<Props> = ({ user, userId }) => {
                 </div>
 
                 <div className="space-y-5">
-                    {currentDayMeals && currentDayMeals.map((meal, idx) => {
+                    {(currentDayMeals || []).map((meal, idx) => {
                         const isCompleted = completedMeals[`${selectedDayIndex}-${idx}`];
                         return (
                         <div 

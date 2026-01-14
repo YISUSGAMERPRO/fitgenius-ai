@@ -445,7 +445,7 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
 
              {/* Days Navigation - Scrollbar Enabled */}
              <div className="flex overflow-x-auto pb-4 gap-3">
-                 {plan.schedule.map((day, idx) => (
+                 {(plan?.schedule || []).map((day, idx) => (
                      <button
                         key={idx}
                         onClick={() => setSelectedDayIndex(idx)}
@@ -530,7 +530,7 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
                     )}
 
                     <div className={`grid grid-cols-1 gap-4 ${isSessionActive ? 'pb-48' : ''}`}>
-                        {currentDay.exercises.map((ex, idx) => (
+                        {(currentDay.exercises || []).map((ex, idx) => (
                             <ExerciseCard 
                                 key={`${selectedDayIndex}-${idx}`} 
                                 exercise={ex} 
