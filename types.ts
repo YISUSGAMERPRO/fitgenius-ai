@@ -48,7 +48,7 @@ export interface UserProfile {
 
 export interface UserAccount {
     id: string;
-    username: string;
+    email: string;
     password: string; // Stored in localstorage (simulated)
     profile?: UserProfile;
 }

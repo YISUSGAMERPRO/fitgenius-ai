@@ -42,12 +42,12 @@ const clearCache = (pattern?: string) => {
 
 export const api = {
     // --- AUTENTICACIÓN ---
-    login: async (username: string, password: string): Promise<UserAccount | null> => {
+    login: async (email: string, password: string): Promise<UserAccount | null> => {
         try {
             const res = await fetch(`${API_BASE_URL}/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
+                body: JSON.stringify({ email, password })
             });
             if (!res.ok) return null;
             const data = await res.json();

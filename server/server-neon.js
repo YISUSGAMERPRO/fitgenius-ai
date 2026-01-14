@@ -4,6 +4,7 @@ const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
 const compression = require('compression');
+const crypto = require('crypto');
 const { GoogleGenAI } = require('@google/genai');
 require('dotenv').config();
 
@@ -126,11 +127,11 @@ app.get('/api/test-gemini', async (req, res) => {
 // Login
 app.post('/api/login', async (req, res) => {
     try {
-        const { username, password } = req.body;
+        const { email, password } = req.body;
         
         const result = await pool.query(
-            'SELECT id, username, email FROM users WHERE username = $1 AND password = $2 LIMIT 1',
-            [username, password]
+            'SELECT id, email FROM users WHERE email = $1 AND password = $2 LIMIT 1',
+            [email, password]
         );
         
         if (result.rows.length === 0) {
@@ -140,6 +141,39 @@ app.post('/api/login', async (req, res) => {
         res.json(result.rows[0]);
     } catch (err) {
         console.error('Error en login:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Register
+app.post('/api/register', async (req, res) => {
+    try {
+        const { email, password, id } = req.body;
+        
+        if (!email || !password) {
+            return res.status(400).json({ error: 'Email y contraseña son requeridos' });
+        }
+        
+        // Verificar si el email ya existe
+        const existingUser = await pool.query(
+            'SELECT id FROM users WHERE email = $1 LIMIT 1',
+            [email]
+        );
+        
+        if (existingUser.rows.length > 0) {
+            return res.status(409).json({ error: 'El email ya está registrado' });
+        }
+        
+        // Crear nuevo usuario
+        const userId = id || crypto.randomUUID();
+        await pool.query(
+            'INSERT INTO users (id, email, password, created_at) VALUES ($1, $2, $3, NOW())',
+            [userId, email, password]
+        );
+        
+        res.json({ id: userId, email, success: true });
+    } catch (err) {
+        console.error('Error en registro:', err.message);
         res.status(500).json({ error: err.message });
     }
 });

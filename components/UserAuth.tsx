@@ -11,7 +11,7 @@ interface Props {
 
 const UserAuth: React.FC<Props> = ({ onLogin, onAdminAccess }) => {
   const [isRegistering, setIsRegistering] = useState(false);
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -23,11 +23,11 @@ const UserAuth: React.FC<Props> = ({ onLogin, onAdminAccess }) => {
     setIsLoading(true);
 
     try {
-        const account = await api.login(username, password);
+        const account = await api.login(email, password);
         if (account) {
             onLogin(account);
         } else {
-            setError('Usuario o contraseña incorrectos.');
+            setError('Correo o contraseña incorrectos.');
         }
     } catch (err) {
         setError('Error al conectar con la base de datos.');
@@ -45,8 +45,8 @@ const UserAuth: React.FC<Props> = ({ onLogin, onAdminAccess }) => {
       return;
     }
     
-    if (username.length < 3) {
-      setError('El usuario debe tener al menos 3 caracteres.');
+    if (!email.includes('@')) {
+      setError('Por favor ingresa un correo electrónico válido.');
       return;
     }
 
@@ -54,7 +54,7 @@ const UserAuth: React.FC<Props> = ({ onLogin, onAdminAccess }) => {
 
     const newAccount: UserAccount = {
       id: crypto.randomUUID(),
-      username,
+      email,
       password,
     };
 
@@ -97,15 +97,15 @@ const UserAuth: React.FC<Props> = ({ onLogin, onAdminAccess }) => {
 
         <form onSubmit={isRegistering ? handleRegister : handleLogin} className="p-8 space-y-5">
             <div>
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Usuario</label>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Correo Electrónico</label>
                 <div className="relative mt-1">
                     <User className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                     <input 
-                        type="text" 
-                        value={username}
-                        onChange={e => setUsername(e.target.value)}
+                        type="email" 
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
                         className="w-full bg-slate-800/50 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-white outline-none focus:border-brand-500 transition-all placeholder-slate-600"
-                        placeholder="Nombre de usuario"
+                        placeholder="tu@email.com"
                         required
                     />
                 </div>
