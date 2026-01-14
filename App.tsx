@@ -75,11 +75,15 @@ function App() {
     localStorage.setItem('userProfile', JSON.stringify(profile));
     
     // Guardar el perfil en la base de datos
-    await api.saveProfile({
-      id: currentUserAccount.id,
-      user_id: currentUserAccount.id,
-      ...profile
-    });
+    try {
+      await api.saveProfile({
+        id: profile.id || `profile_${Date.now()}`,
+        user_id: currentUserAccount.id,
+        ...profile
+      });
+    } catch (err) {
+      console.warn('⚠️ No se pudo guardar perfil en BD:', err);
+    }
     
     setCurrentUserAccount(prev => prev ? { ...prev, profile } : null);
     
