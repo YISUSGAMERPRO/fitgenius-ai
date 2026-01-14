@@ -5,7 +5,7 @@ WORKDIR /app
 COPY server/package.json ./
 RUN npm install --production
 
-COPY server/server.js .
+COPY server/server-neon.js ./server.js
 COPY start.sh .
 RUN chmod +x start.sh
 
@@ -14,4 +14,4 @@ ENV PORT=3001
 
 EXPOSE 3001
 
-CMD ["./start.sh"]
+CMD ["node", "server.js"]
