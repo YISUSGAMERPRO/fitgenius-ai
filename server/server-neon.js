@@ -173,6 +173,7 @@ async function initializeTables() {
             } catch (err) {
                 if (err.code !== '42P07') { // 42P07 = relación ya existe
                     console.error('❌ Error creando tabla:', err.message);
+                    throw err;
                 }
             }
         }
@@ -190,13 +191,16 @@ async function initializeTables() {
             try {
                 await pool.query(sql);
             } catch (err) {
-                // Ignorar si el índice ya existe
+                console.log('ℹ️ Índice ya existe:', sql.split(' ')[4]);
             }
         }
 
         console.log('✅ Tablas inicializadas correctamente');
+        return true;
     } catch (err) {
         console.error('❌ Error inicializando tablas:', err.message);
+        console.error('Stack:', err.stack);
+        throw err;
     }
 }
 
@@ -205,17 +209,21 @@ async function initializeTables() {
     try {
         await initializeTables();
         console.log('✅ Base de datos lista');
-        
-        // Iniciar servidor después de la inicialización
-        const server = app.listen(PORT, () => {
-            console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
-            console.log(`📡 DATABASE_URL: ${process.env.DATABASE_URL ? 'Configurada ✅' : 'NO configurada ❌'}`);
-            console.log(`🤖 GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? 'Configurada ✅' : 'NO configurada ❌'}`);
-        });
     } catch (err) {
-        console.error('❌ Fallo crítico en inicialización:', err);
-        process.exit(1);
+        console.error('⚠️ Error en inicialización de tablas (continuando de todas formas):', err.message);
     }
+    
+    // Iniciar servidor SIEMPRE, incluso si hay error en tablas
+    const server = app.listen(PORT, () => {
+        console.log(`\n🚀 Servidor corriendo en puerto ${PORT}`);
+        console.log(`📡 DATABASE_URL: ${process.env.DATABASE_URL ? 'Configurada ✅' : 'NO configurada ❌'}`);
+        console.log(`🤖 GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? 'Configurada ✅' : 'NO configurada ❌'}\n`);
+    });
+    
+    // Prevenir cierre del servidor
+    server.on('error', (err) => {
+        console.error('❌ Error del servidor:', err);
+    });
 })();
 
 // Manejo de errores del pool
