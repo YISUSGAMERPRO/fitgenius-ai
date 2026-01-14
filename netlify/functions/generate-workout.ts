@@ -24,6 +24,7 @@ const handler: Handler = async (event) => {
     const genAI = new GoogleGenerativeAI(geminiApiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
     
+    // Prompt simplificado para Gemini
     const prompt = `Genera un plan de entrenamiento de 7 días SOLO en JSON válido para alguien con objetivo: ${profile.goal}. Sin explicaciones, SOLO JSON.`;
     
     console.log('📮 Llamando Gemini...');
