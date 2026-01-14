@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { UserProfile, DietPlan, Meal } from '../types';
 import { api } from '../services/api';
-import { regenerateMeal } from '../services/geminiService';
+// import { regenerateMeal } from '../services/geminiService'; // DESHABILITADO TEMPORALMENTE
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as ReTooltip, Legend } from 'recharts';
 import { BookOpen, Droplets, Utensils, RefreshCw, ChefHat, Salad, List, CheckCircle2, Filter, X, CalendarDays, GripVertical, Download, Printer, ChevronDown, ChevronUp, DollarSign, Wallet, TrendingUp, Flame, Settings2, LayoutTemplate, Info, Circle, Check } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
@@ -213,31 +213,34 @@ const DietView: React.FC<Props> = ({ user, userId }) => {
     if (!diet || !diet.schedule) return;
     setRegeneratingMealIndex(mealIndex);
     try {
-        const currentDay = diet.schedule[selectedDayIndex];
-        const originalMeal = currentDay.meals[mealIndex];
+        // TODO: Implementar endpoint de Netlify Function para regenerar comidas
+        // const currentDay = diet.schedule[selectedDayIndex];
+        // const originalMeal = currentDay.meals[mealIndex];
         
-        const budgetVal = parseFloat(budgetAmount);
-        const budget = (budgetVal > 0) ? { amount: budgetVal, frequency: budgetFrequency } : undefined;
+        // const budgetVal = parseFloat(budgetAmount);
+        // const budget = (budgetVal > 0) ? { amount: budgetVal, frequency: budgetFrequency } : undefined;
 
-        const newMeal = await regenerateMeal(user, originalMeal, dietType, preferences, budget);
+        // const newMeal = await regenerateMeal(user, originalMeal, dietType, preferences, budget);
         
-        // Deep clone to update
-        const updatedSchedule = [...diet.schedule];
-        updatedSchedule[selectedDayIndex] = {
-            ...currentDay,
-            meals: [...currentDay.meals]
-        };
-        updatedSchedule[selectedDayIndex].meals[mealIndex] = newMeal;
+        alert("⚠️ La función de regenerar comidas está temporalmente deshabilitada. Pronto estará disponible.");
+        
+        // // Deep clone to update
+        // const updatedSchedule = [...diet.schedule];
+        // updatedSchedule[selectedDayIndex] = {
+        //     ...currentDay,
+        //     meals: [...currentDay.meals]
+        // };
+        // updatedSchedule[selectedDayIndex].meals[mealIndex] = newMeal;
 
-        setDiet({ ...diet, schedule: updatedSchedule });
+        // setDiet({ ...diet, schedule: updatedSchedule });
         
-        // Reset completion status for this specific meal slot if it changes
-        const key = `${selectedDayIndex}-${mealIndex}`;
-        if(completedMeals[key]) {
-            const newCompleted = {...completedMeals};
-            delete newCompleted[key];
-            setCompletedMeals(newCompleted);
-        }
+        // // Reset completion status for this specific meal slot if it changes
+        // const key = `${selectedDayIndex}-${mealIndex}`;
+        // if(completedMeals[key]) {
+        //     const newCompleted = {...completedMeals};
+        //     delete newCompleted[key];
+        //     setCompletedMeals(newCompleted);
+        // }
 
     } catch (e) {
         console.error(e);

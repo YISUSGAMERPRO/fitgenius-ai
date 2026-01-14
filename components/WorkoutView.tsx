@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { UserProfile, WorkoutPlan, Exercise, WorkoutLog, ExerciseSet } from '../types';
 import { api } from '../services/api';
-import { getExerciseAlternative } from '../services/geminiService';
+// import { getExerciseAlternative } from '../services/geminiService'; // DESHABILITADO TEMPORALMENTE
 import { Play, Pause, Power, Trophy, Loader2, RefreshCw, ChevronDown, ChevronUp, Video, CheckCircle2, Circle, Dumbbell, Calendar, Info, AlertTriangle, ArrowRight, Settings2, Youtube } from 'lucide-react';
 import { ConfirmModal } from './ConfirmModal';
 
@@ -155,16 +155,18 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
         setRegeneratingExerciseId(regenId);
 
         try {
-            // Collect names to avoid
-            const avoid = plan.schedule[dayIdx].exercises.map(e => e.name);
-            const newExercise = await getExerciseAlternative(exercise, user, avoid);
+            // TODO: Implementar endpoint de Netlify Function para alternativas de ejercicio
+            // const avoid = plan.schedule[dayIdx].exercises.map(e => e.name);
+            // const newExercise = await getExerciseAlternative(exercise, user, avoid);
             
-            const newSchedule = [...plan.schedule];
-            newSchedule[dayIdx].exercises[exerciseIdx] = newExercise;
-            const updatedPlan = { ...plan, schedule: newSchedule };
+            alert("⚠️ La función de intercambio de ejercicios está temporalmente deshabilitada. Pronto estará disponible.");
             
-            setPlan(updatedPlan);
-            localStorage.setItem(STORAGE_KEY_PLAN, JSON.stringify(updatedPlan));
+            // const newSchedule = [...plan.schedule];
+            // newSchedule[dayIdx].exercises[exerciseIdx] = newExercise;
+            // const updatedPlan = { ...plan, schedule: newSchedule };
+            
+            // setPlan(updatedPlan);
+            // localStorage.setItem(STORAGE_KEY_PLAN, JSON.stringify(updatedPlan));
         } catch (e) {
             console.error(e);
             alert("No se pudo regenerar el ejercicio.");
