@@ -207,42 +207,38 @@ async function initializeTables() {
 // Ejecutar inicialización Y LUEGO iniciar servidor
 console.log('⏳ Iniciando función de arranque del servidor...');
 
-(async () => {
-    try {
-        console.log('🔄 Esperando inicialización de tablas...');
-        await initializeTables();
-        console.log('✅ Base de datos lista');
-    } catch (err) {
-        console.error('⚠️ Error en inicialización de tablas (continuando de todas formas):', err.message);
-    }
-    
-    // Iniciar servidor SIEMPRE, incluso si hay error en tablas
-    console.log(`📡 Intentando escuchar en 0.0.0.0:${PORT}...`);
-    const server = app.listen(PORT, '0.0.0.0', () => {
-        console.log(`\n🚀 Servidor corriendo en 0.0.0.0:${PORT}`);
-        console.log(`📡 DATABASE_URL: ${process.env.DATABASE_URL ? 'Configurada ✅' : 'NO configurada ❌'}`);
-        console.log(`🤖 GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? 'Configurada ✅' : 'NO configurada ❌'}\n`);
+// Inicializar tablas de forma asíncrona pero sin bloquear
+initializeTables()
+    .then(() => console.log('✅ Base de datos lista'))
+    .catch(err => console.error('⚠️ Error en inicialización de tablas:', err.message));
+
+// Iniciar servidor INMEDIATAMENTE (sin esperar tablas)
+console.log(`📡 Intentando escuchar en 0.0.0.0:${PORT}...`);
+const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`\n🚀 Servidor corriendo en 0.0.0.0:${PORT}`);
+    const dbConfigured = process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL_UNPOOLED || process.env.NETLIFY_DATABASE_URL || process.env.POSTGRES_URL;
+    console.log(`📡 Base de Datos: ${dbConfigured ? 'Configurada ✅' : 'NO configurada ❌'}`);
+    console.log(`🤖 GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? 'Configurada ✅' : 'NO configurada ❌'}\n`);
+});
+
+console.log('✅ app.listen() se ha iniciado');
+
+// Prevenir cierre del servidor
+server.on('error', (err) => {
+    console.error('❌ Error del servidor:', err);
+});
+
+server.on('close', () => {
+    console.warn('⚠️ Servidor cerrado');
+});
+
+// Mantener el proceso activo
+process.on('SIGTERM', () => {
+    console.log('⚠️ SIGTERM recibido, cerrando gracefully...');
+    server.close(() => {
+        process.exit(0);
     });
-    
-    console.log('✅ app.listen() se ha iniciado');
-    
-    // Prevenir cierre del servidor
-    server.on('error', (err) => {
-        console.error('❌ Error del servidor:', err);
-    });
-    
-    server.on('close', () => {
-        console.warn('⚠️ Servidor cerrado');
-    });
-    
-    // Mantener el proceso activo
-    process.on('SIGTERM', () => {
-        console.log('⚠️ SIGTERM recibido, cerrando gracefully...');
-        server.close(() => {
-            process.exit(0);
-        });
-    });
-})();
+});
 
 console.log('✅ Función de arranque iniciada');
 
@@ -251,6 +247,17 @@ console.log('✅ Función de arranque iniciada');
 // Health check inmediato
 app.get('/api/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// Debug endpoint para ver la API key (solo primeros/últimos caracteres)
+app.get('/api/debug-env', (req, res) => {
+    const key = process.env.GEMINI_API_KEY || '';
+    res.json({
+        geminiKeyPrefix: key.substring(0, 10),
+        geminiKeySuffix: key.substring(key.length - 4),
+        geminiKeyLength: key.length,
+        hasKey: !!key
+    });
 });
 
 // Test de Gemini API
@@ -536,7 +543,7 @@ app.get('/api/admin/database-stats', async (req, res) => {
         stats.diets = parseInt(diets.rows[0].count);
         
         // Últimos 10 registros
-        const recentUsers = await pool.query('SELECT id, COALESCE(email, username) AS email, created_at FROM users ORDER BY created_at DESC LIMIT 10');
+        const recentUsers = await pool.query('SELECT id, email, created_at FROM users ORDER BY created_at DESC LIMIT 10');
         const recentWorkouts = await pool.query('SELECT id, user_id, title, created_at FROM workout_plans ORDER BY created_at DESC LIMIT 10');
         const recentDiets = await pool.query('SELECT id, user_id, title, created_at FROM diet_plans ORDER BY created_at DESC LIMIT 10');
         
@@ -729,9 +736,12 @@ app.post('/api/generate-diet', async (req, res) => {
 // Manejo de errores no capturados
 process.on('uncaughtException', (err) => {
     console.error('❌ Excepción no capturada:', err);
-    process.exit(1);
+    // NO hacer exit para mantener el servidor corriendo
 });
 
 process.on('unhandledRejection', (reason, promise) => {
     console.error('❌ Promesa rechazada no manejada:', reason);
 });
+
+// Mantener el proceso vivo
+setInterval(() => {}, 1 << 30); // Keepalive
