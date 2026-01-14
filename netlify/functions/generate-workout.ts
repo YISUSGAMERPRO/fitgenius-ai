@@ -1,6 +1,5 @@
 import { Handler } from '@netlify/functions';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { Pool } from 'pg';
 
 const handler: Handler = async (event) => {
   try {
@@ -64,32 +63,29 @@ Responde SOLO con JSON, sin markdown, sin explicaciones.`;
       startDate: new Date().toISOString()
     };
     
-    // Intentar guardar en Neon
-    const databaseUrl = process.env.NETLIFY_DATABASE_URL_UNPOOLED;
-    if (databaseUrl && userId) {
+    // Guardar en Railway (más confiable que conexión directa a Neon)
+    const railwayUrl = process.env.RAILWAY_API_URL || 'https://fitgenius-ai-production.up.railway.app';
+    if (userId) {
       try {
-        const pool = new Pool({
-          connectionString: databaseUrl,
-          ssl: { rejectUnauthorized: false }
+        const saveResponse = await fetch(`${railwayUrl}/api/save-workout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            title: workoutPlan.title || 'Plan de Entrenamiento',
+            planData: workoutPlan
+          })
         });
         
-        await pool.query(
-          `INSERT INTO workout_plans (id, user_id, title, description, plan_data, created_at)
-           VALUES ($1, $2, $3, $4, $5, NOW())
-           ON CONFLICT (id) DO UPDATE SET plan_data = $5`,
-          [
-            planId,
-            userId,
-            workoutPlan.title || 'Plan de Entrenamiento',
-            workoutPlan.description || '',
-            JSON.stringify(workoutPlan)
-          ]
-        );
-        console.log('✅ Rutina guardada en Neon');
-        await pool.end();
-      } catch (dbErr) {
-        console.warn('⚠️ No se guardó en Neon:', dbErr);
-        // No es error fatal
+        if (saveResponse.ok) {
+          console.log('✅ Rutina guardada en Railway/Neon');
+        } else {
+          const error = await saveResponse.text();
+          console.warn('⚠️ No se guardó en BD:', error);
+        }
+      } catch (dbErr: any) {
+        console.warn('⚠️ No se guardó en BD:', dbErr?.message);
+        // No es error fatal, el plan se devuelve de todas formas
       }
     }
     
