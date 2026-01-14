@@ -107,26 +107,33 @@ if (typeof connectionConfig === 'string' && connectionConfig.startsWith('postgre
     usePostgres = true;
     
     try {
-        // Parsear URL PostgreSQL manualmente
-        const pgUrlRegex = /^postgresql:\/\/([^:]+):([^@]+)@([^:/]+)(?::(\d+))?\/([^?]+)(?:\?(.*))?$/;
+        // Parsear URL PostgreSQL manualmente con regex más flexible
+        // Soporta: postgresql://user:pass@host:port/db?params
+        const pgUrlRegex = /^postgresql:\/\/([^:/@]+):(.+)@([^:/]+)(?::(\d+))?\/(.+?)(?:\?(.*))?$/;
         const match = connectionConfig.match(pgUrlRegex);
         
-        if (!match) {
-            throw new Error('Invalid PostgreSQL URL format');
+        let pgConfig;
+        
+        if (match) {
+            const [, user, password, host, port, database] = match;
+            pgConfig = {
+                user: user,
+                password: password,
+                host: host,
+                port: parseInt(port) || 5432,
+                database: database.split('?')[0], // Remover query params del database name
+                ssl: { rejectUnauthorized: false }
+            };
+        } else {
+            // Si no hay @, intentar parsear como connectionString directamente
+            console.log('📡 Usando connectionString directamente (sin parseo)');
+            pgConfig = {
+                connectionString: connectionConfig,
+                ssl: { rejectUnauthorized: false }
+            };
         }
         
-        const [, user, password, host, port, database, queryString] = match;
-        
-        const pgConfig = {
-            user: user,
-            password: password,
-            host: host,
-            port: parseInt(port) || 5432,
-            database: database,
-            ssl: { rejectUnauthorized: false }
-        };
-        
-        console.log('📡 PostgreSQL Config:', {
+        console.log('📡 PostgreSQL Config:', pgConfig.connectionString ? 'connectionString' : {
             user: pgConfig.user,
             host: pgConfig.host,
             port: pgConfig.port,
