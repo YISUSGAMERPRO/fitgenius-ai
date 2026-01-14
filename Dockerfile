@@ -1,19 +1,22 @@
 FROM node:22-slim
 
-# FORCE REBUILD: 2026-01-13-17:00:00
+# INVALIDATE CACHE: 2026-01-13-22:01:30-FINAL
 WORKDIR /app
+
+# Limpiar cualquier cache de npm
+RUN npm cache clean --force
 
 # Copiar package files primero
 COPY server/package*.json ./
 
-# Debug: mostrar archivos copiados
-RUN ls -la
+# Debug: mostrar package.json completo
+RUN cat package.json
 
-# Instalar dependencias
-RUN npm install && npm list --depth=0
+# Instalar dependencias SIN cache
+RUN npm install --no-cache && npm list --depth=0
 
 # Debug: verificar node_modules
-RUN ls -la node_modules | head -20
+RUN ls -la node_modules | head -30
 
 # Copiar código del servidor
 COPY server/ ./
