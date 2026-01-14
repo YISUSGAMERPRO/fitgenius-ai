@@ -252,17 +252,27 @@ app.post('/api/generate-workout', async (req, res) => {
 
         console.log('📥 Respuesta recibida, primeros 200 chars:', response.text.substring(0, 200));
 
-        // Extraer JSON - buscar el primer { y el último }
-        const firstBrace = response.text.indexOf('{');
-        const lastBrace = response.text.lastIndexOf('}');
+        // Extraer JSON - puede estar dentro de bloque markdown ```json...```
+        let jsonText = response.text;
         
-        if (firstBrace === -1 || lastBrace === -1) {
-            console.error('❌ No se encontró JSON en la respuesta');
-            console.error('Respuesta completa:', response.text);
-            throw new Error('No se encontró JSON en la respuesta de Gemini');
+        // Si está dentro de bloque markdown, extraerlo
+        const markdownMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (markdownMatch) {
+            console.log('🔍 Encontrado JSON dentro de bloque markdown');
+            jsonText = markdownMatch[1].trim();
+        } else {
+            // Si no, buscar directamente el JSON entre { y }
+            const firstBrace = jsonText.indexOf('{');
+            const lastBrace = jsonText.lastIndexOf('}');
+            
+            if (firstBrace === -1 || lastBrace === -1) {
+                console.error('❌ No se encontró JSON en la respuesta');
+                console.error('Respuesta completa:', response.text);
+                throw new Error('No se encontró JSON en la respuesta de Gemini');
+            }
+            jsonText = jsonText.substring(firstBrace, lastBrace + 1);
         }
-
-        const jsonText = response.text.substring(firstBrace, lastBrace + 1);
+        
         console.log('🔍 JSON extraído:', jsonText.substring(0, 150));
 
         let workoutPlan;
@@ -323,16 +333,25 @@ app.post('/api/generate-diet', async (req, res) => {
 
         console.log('📥 Respuesta recibida');
 
-        // Extraer JSON
-        const firstBrace = response.text.indexOf('{');
-        const lastBrace = response.text.lastIndexOf('}');
+        // Extraer JSON - puede estar dentro de bloque markdown ```json...```
+        let jsonText = response.text;
         
-        if (firstBrace === -1 || lastBrace === -1) {
-            console.error('❌ No se encontró JSON en la respuesta');
-            throw new Error('No se encontró JSON en la respuesta de Gemini');
+        // Si está dentro de bloque markdown, extraerlo
+        const markdownMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (markdownMatch) {
+            console.log('🔍 Encontrado JSON dentro de bloque markdown');
+            jsonText = markdownMatch[1].trim();
+        } else {
+            // Si no, buscar directamente el JSON entre { y }
+            const firstBrace = jsonText.indexOf('{');
+            const lastBrace = jsonText.lastIndexOf('}');
+            
+            if (firstBrace === -1 || lastBrace === -1) {
+                console.error('❌ No se encontró JSON en la respuesta');
+                throw new Error('No se encontró JSON en la respuesta de Gemini');
+            }
+            jsonText = jsonText.substring(firstBrace, lastBrace + 1);
         }
-
-        const jsonText = response.text.substring(firstBrace, lastBrace + 1);
 
         let dietPlan;
         try {
