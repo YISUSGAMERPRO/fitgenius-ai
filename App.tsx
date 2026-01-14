@@ -76,11 +76,22 @@ function App() {
     
     // Guardar el perfil en la base de datos
     try {
-      await api.saveProfile({
+      const profileData = {
         id: profile.id || `profile_${Date.now()}`,
         user_id: currentUserAccount.id,
         ...profile
+      };
+      console.log('📤 Enviando perfil al servidor:', {
+        id: profileData.id,
+        user_id: profileData.user_id,
+        name: profileData.name,
+        age: profileData.age,
+        height: profileData.height,
+        weight: profileData.weight,
+        gender: profileData.gender
       });
+      
+      await api.saveProfile(profileData);
     } catch (err) {
       console.warn('⚠️ No se pudo guardar perfil en BD:', err);
     }

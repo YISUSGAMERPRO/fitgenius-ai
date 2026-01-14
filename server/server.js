@@ -499,6 +499,47 @@ app.get('/api/profile/:userId', noCache, (req, res) => {
 app.post('/api/profile', (req, res) => {
     const { id, user_id, name, age, height, weight, gender, body_type, goal, activity_level, equipment, injuries, is_cycle_tracking, last_period_start, cycle_length } = req.body;
     
+    console.log('📥 Perfil recibido del frontend:', {
+        id: id ? 'OK' : 'MISSING',
+        user_id: user_id ? 'OK' : 'MISSING',
+        name: name || 'MISSING/UNDEFINED',
+        age: age || 'MISSING/UNDEFINED',
+        height: height || 'MISSING/UNDEFINED',
+        weight: weight || 'MISSING/UNDEFINED',
+        gender: gender || 'MISSING/UNDEFINED',
+        goal: goal || 'MISSING/UNDEFINED',
+        activity_level: activity_level || 'MISSING/UNDEFINED'
+    });
+    
+    // Validación de campos requeridos (con fallbacks)
+    const validatedName = name || 'Usuario';
+    const validatedId = id || `profile_${Date.now()}`;
+    
+    if (!user_id || !age || !height || !weight || !gender || !goal || !activity_level) {
+        console.error('❌ Validación fallida:', {
+            user_id: !user_id,
+            age: !age,
+            height: !height,
+            weight: !weight,
+            gender: !gender,
+            goal: !goal,
+            activity_level: !activity_level
+        });
+        
+        return res.status(400).json({ 
+            error: 'Faltan campos requeridos',
+            missing: {
+                user_id: !user_id,
+                age: !age,
+                height: !height,
+                weight: !weight,
+                gender: !gender,
+                goal: !goal,
+                activity_level: !activity_level
+            }
+        });
+    }
+    
     // Mapear género desde frontend (español) a DB (inglés)
     const genderMapToDb = {
         'Masculino': 'male',
@@ -523,17 +564,20 @@ app.post('/api/profile', (req, res) => {
                 goal = ?, activity_level = ?, equipment = ?, injuries = ?, 
                 is_cycle_tracking = ?, last_period_start = ?, cycle_length = ?
                 WHERE user_id = ?`;
-            params = [name, age, height, weight, normalizedGender, body_type, goal, activity_level, JSON.stringify(equipment || []), injuries, is_cycle_tracking, last_period_start, cycle_length, user_id];
+            params = [validatedName, age, height, weight, normalizedGender, body_type, goal, activity_level, JSON.stringify(equipment || []), injuries, is_cycle_tracking, last_period_start, cycle_length, user_id];
         } else {
             // INSERT
             sql = `INSERT INTO user_profiles (id, user_id, name, age, height, weight, gender, body_type, goal, activity_level, equipment, injuries, is_cycle_tracking, last_period_start, cycle_length)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-            params = [id, user_id, name, age, height, weight, normalizedGender, body_type, goal, activity_level, JSON.stringify(equipment || []), injuries, is_cycle_tracking, last_period_start, cycle_length];
+            params = [validatedId, user_id, validatedName, age, height, weight, normalizedGender, body_type, goal, activity_level, JSON.stringify(equipment || []), injuries, is_cycle_tracking, last_period_start, cycle_length];
         }
         
         db.query(sql, params, (err, result) => {
-            if (err) return res.status(500).json({ error: err.message });
-            console.log('✅ Perfil guardado/actualizado');
+            if (err) {
+                console.error('❌ Error al guardar perfil:', err.message);
+                return res.status(500).json({ error: err.message });
+            }
+            console.log('✅ Perfil guardado/actualizado con éxito');
             res.json({ message: 'Perfil guardado correctamente' });
         });
     });

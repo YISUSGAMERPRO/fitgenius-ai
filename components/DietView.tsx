@@ -4,7 +4,7 @@ import { UserProfile, DietPlan, Meal } from '../types';
 import { api } from '../services/api';
 // import { regenerateMeal } from '../services/geminiService'; // DESHABILITADO TEMPORALMENTE
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as ReTooltip, Legend } from 'recharts';
-import { BookOpen, Droplets, Utensils, RefreshCw, ChefHat, Salad, List, CheckCircle2, Filter, X, CalendarDays, GripVertical, Download, Printer, ChevronDown, ChevronUp, DollarSign, Wallet, TrendingUp, Flame, Settings2, LayoutTemplate, Info, Circle, Check } from 'lucide-react';
+import { BookOpen, Droplets, Utensils, RefreshCw, ChefHat, Salad, List, CheckCircle2, Filter, X, CalendarDays, GripVertical, Download, Printer, ChevronDown, ChevronUp, DollarSign, Wallet, TrendingUp, Flame, Settings2, LayoutTemplate, Info, Circle, Check, Loader2 } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 
 interface Props {

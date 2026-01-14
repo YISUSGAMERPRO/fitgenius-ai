@@ -12,6 +12,10 @@ const ProfileSetup: React.FC<Props> = ({ onComplete, initialData, onCancel }) =>
   const [step, setStep] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<UserProfile>>(initialData || {
+    name: '',
+    age: undefined,
+    height: undefined,
+    weight: undefined,
     equipment: [],
     gender: Gender.Male,
     goal: Goal.LoseWeight,
