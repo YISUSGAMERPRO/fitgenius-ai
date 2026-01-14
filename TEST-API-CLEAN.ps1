@@ -1,0 +1,49 @@
+# Test del API para guardar en Neon
+Start-Sleep -Seconds 2
+Write-Host "Testeando API..." -ForegroundColor Cyan
+
+# Test 1: Health check
+Write-Host "`nTest 1: Health Check" -ForegroundColor Yellow
+try {
+    $health = Invoke-WebRequest -Uri "http://localhost:3001/api/health" -Method GET | ConvertFrom-Json
+    Write-Host "OK Servidor: $($health.status)" -ForegroundColor Green
+} catch {
+    Write-Host "ERROR: Servidor no responde" -ForegroundColor Red
+}
+
+# Test 2: Guardar miembro
+Write-Host "`nTest 2: Guardar miembro en Neon" -ForegroundColor Yellow
+try {
+    $body = @{
+        id = "member-test-$(Get-Random)"
+        name = "Juan Perez"
+        plan = "Premium"
+        status = "Activo"
+    } | ConvertTo-Json
+    
+    $response = Invoke-WebRequest -Uri "http://localhost:3001/api/members" `
+        -Method POST `
+        -ContentType "application/json" `
+        -Body $body
+    
+    $result = $response.Content | ConvertFrom-Json
+    Write-Host "OK Miembro guardado:" -ForegroundColor Green
+    Write-Host "   ID: $($result.id)"
+    Write-Host "   Mensaje: $($result.message)"
+} catch {
+    Write-Host "ERROR: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+# Test 3: Ver estadísticas de BD
+Write-Host "`nTest 3: Estadisticas de BD" -ForegroundColor Yellow
+try {
+    $stats = Invoke-WebRequest -Uri "http://localhost:3001/api/admin/database-stats" -Method GET | ConvertFrom-Json
+    Write-Host "OK Estadisticas:" -ForegroundColor Green
+    Write-Host "   Usuarios: $($stats.users_count)"
+    Write-Host "   Miembros: $($stats.gym_members_count)"
+    Write-Host "   Planes: $($stats.workout_plans_count)"
+} catch {
+    Write-Host "ERROR: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+Write-Host "`nTests completados!" -ForegroundColor Cyan

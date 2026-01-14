@@ -205,8 +205,11 @@ async function initializeTables() {
 }
 
 // Ejecutar inicialización Y LUEGO iniciar servidor
+console.log('⏳ Iniciando función de arranque del servidor...');
+
 (async () => {
     try {
+        console.log('🔄 Esperando inicialización de tablas...');
         await initializeTables();
         console.log('✅ Base de datos lista');
     } catch (err) {
@@ -214,15 +217,22 @@ async function initializeTables() {
     }
     
     // Iniciar servidor SIEMPRE, incluso si hay error en tablas
+    console.log(`📡 Intentando escuchar en 0.0.0.0:${PORT}...`);
     const server = app.listen(PORT, '0.0.0.0', () => {
         console.log(`\n🚀 Servidor corriendo en 0.0.0.0:${PORT}`);
         console.log(`📡 DATABASE_URL: ${process.env.DATABASE_URL ? 'Configurada ✅' : 'NO configurada ❌'}`);
         console.log(`🤖 GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? 'Configurada ✅' : 'NO configurada ❌'}\n`);
     });
     
+    console.log('✅ app.listen() se ha iniciado');
+    
     // Prevenir cierre del servidor
     server.on('error', (err) => {
         console.error('❌ Error del servidor:', err);
+    });
+    
+    server.on('close', () => {
+        console.warn('⚠️ Servidor cerrado');
     });
     
     // Mantener el proceso activo
@@ -233,6 +243,8 @@ async function initializeTables() {
         });
     });
 })();
+
+console.log('✅ Función de arranque iniciada');
 
 // Manejo de errores del pool
 
