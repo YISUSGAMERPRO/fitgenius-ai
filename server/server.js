@@ -107,33 +107,35 @@ if (typeof connectionConfig === 'string' && connectionConfig.startsWith('postgre
     usePostgres = true;
     
     try {
-        // Parsear URL PostgreSQL manualmente con regex más flexible
-        // Soporta: postgresql://user:pass@host:port/db?params
-        const pgUrlRegex = /^postgresql:\/\/([^:/@]+):(.+)@([^:/]+)(?::(\d+))?\/(.+?)(?:\?(.*))?$/;
-        const match = connectionConfig.match(pgUrlRegex);
+        // Parsear URL PostgreSQL manualmente sin usar pg-connection-string
+        // postgresql://user:password@host:port/database?options
+        const url = connectionConfig;
         
-        let pgConfig;
+        // Extraer protocolo
+        const afterProto = url.replace('postgresql://', '');
         
-        if (match) {
-            const [, user, password, host, port, database] = match;
-            pgConfig = {
-                user: user,
-                password: password,
-                host: host,
-                port: parseInt(port) || 5432,
-                database: database.split('?')[0], // Remover query params del database name
-                ssl: { rejectUnauthorized: false }
-            };
-        } else {
-            // Si no hay @, intentar parsear como connectionString directamente
-            console.log('📡 Usando connectionString directamente (sin parseo)');
-            pgConfig = {
-                connectionString: connectionConfig,
-                ssl: { rejectUnauthorized: false }
-            };
-        }
+        // Separar usuario:password de host
+        const [credentials, rest] = afterProto.split('@');
+        const [user, password] = credentials.split(':');
         
-        console.log('📡 PostgreSQL Config:', pgConfig.connectionString ? 'connectionString' : {
+        // Separar host:port/database?options
+        const [hostPort, dbAndQuery] = rest.split('/');
+        const [host, portStr] = hostPort.split(':');
+        const port = parseInt(portStr) || 5432;
+        
+        // Separar database y query params
+        const [database] = dbAndQuery.split('?');
+        
+        const pgConfig = {
+            user: user,
+            password: decodeURIComponent(password),
+            host: host,
+            port: port,
+            database: database,
+            ssl: { rejectUnauthorized: false }
+        };
+        
+        console.log('📡 PostgreSQL Config (parsed):', {
             user: pgConfig.user,
             host: pgConfig.host,
             port: pgConfig.port,
@@ -165,6 +167,7 @@ if (typeof connectionConfig === 'string' && connectionConfig.startsWith('postgre
             });
     } catch (err) {
         console.error('❌ Error inicializando PostgreSQL Pool:', err.message);
+        console.error('Stack:', err.stack);
     }
 } else {
     // MySQL por defecto
