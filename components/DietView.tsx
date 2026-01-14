@@ -367,51 +367,50 @@ const DietView: React.FC<Props> = ({ user, userId }) => {
   }, [currentDayMeals, completedMeals, selectedDayIndex]);
 
   // Current Diet Description
+  // Current Diet Description
   const selectedDietDesc = DIET_OPTIONS.find(d => d.id === dietType)?.desc;
+
+  // Loading Screen
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+        <div className="glass-card p-12 rounded-3xl text-center max-w-md border border-white/5 animate-fadeIn">
+          <div className="mb-6 flex justify-center">
+            <div className="relative w-20 h-20">
+              <div className="absolute inset-0 bg-green-500/20 rounded-full animate-pulse"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Loader2 className="w-10 h-10 text-green-400 animate-spin" />
+              </div>
+            </div>
+          </div>
+          <h3 className="text-2xl font-bold text-white mb-2">Diseñando tu Plan Nutricional</h3>
+          <p className="text-slate-400 mb-4">Nuestro nutricionista IA está analizando tus preferencias...</p>
+          <div className="space-y-2">
+            <div className="flex items-center gap-3 text-slate-300 text-sm">
+              <Circle className="w-2 h-2 fill-green-400 text-green-400" />
+              Procesando datos
+            </div>
+            <div className="flex items-center gap-3 text-slate-300 text-sm">
+              <Circle className="w-2 h-2 fill-green-400 text-green-400" />
+              Generando comidas balanceadas
+            </div>
+            <div className="flex items-center gap-3 text-slate-300 text-sm">
+              <Circle className="w-2 h-2 fill-green-400 text-green-400" />
+              Optimizando macronutrientes
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-fadeIn print:space-y-4">
+        <style>{`
+        @media print {
             aside, header, .no-print, .tab-switcher {
-    // Loading Screen
-    if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-950">
-                <div className="glass-card p-12 rounded-3xl text-center max-w-md border border-white/5 animate-fadeIn">
-                    <div className="mb-6 flex justify-center">
-                        <div className="relative w-20 h-20">
-                            <div className="absolute inset-0 bg-green-500/20 rounded-full animate-pulse"></div>
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <Loader2 className="w-10 h-10 text-green-400 animate-spin" />
-                            </div>
-                        </div>
-                    </div>
-                    <h3 className="text-2xl font-bold text-white mb-2">Diseñando tu Plan Nutricional</h3>
-                    <p className="text-slate-400 mb-4">Nuestro nutricionista IA está analizando tus preferencias...</p>
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-3 text-slate-300 text-sm">
-                            <Circle className="w-2 h-2 fill-green-400 text-green-400" />
-                            Procesando datos
-                        </div>
-                        <div className="flex items-center gap-3 text-slate-300 text-sm">
-                            <Circle className="w-2 h-2 fill-green-400 text-green-400" />
-                            Generando comidas balanceadas
-                        </div>
-                        <div className="flex items-center gap-3 text-slate-300 text-sm">
-                            <Circle className="w-2 h-2 fill-green-400 text-green-400" />
-                            Optimizando macronutrientes
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    // Current Diet Description
-    const selectedDietDesc = DIET_OPTIONS.find(d => d.id === dietType)?.desc;
-
-    return (
+                display: none !important;
             }
-            body, .glass-card, .bg-slate-900, .bg-slate-800 {
                 background: white !important;
                 color: black !important;
                 border: none !important;
