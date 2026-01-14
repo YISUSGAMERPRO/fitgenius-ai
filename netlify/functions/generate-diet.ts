@@ -33,8 +33,10 @@ const handler: Handler = async (event) => {
       || process.env.NETLIFY_DATABASE_URL 
       || process.env.DATABASE_URL;
     
+    console.log('🤖 Inicializando GoogleGenerativeAI...');
     const genAI = new GoogleGenerativeAI(geminiApiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    console.log('✅ Modelo Gemini cargado: gemini-2.0-flash-exp');
     
     const prompt = `Eres un nutricionista profesional. Genera un plan de nutrición personalizado en SOLO JSON válido.
 
@@ -72,14 +74,31 @@ Responde SOLO con JSON válido (sin explicaciones ni markdown):
   "tips": ["Prepara tus comidas el domingo", "Mantén porciones consistentes", "Bebe 3-4 litros de agua diaria", "Come cada 3-4 horas", "Duerme 7-8 horas para recuperación"]
 }`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-
-    const responseText = response.text();
-    if (!responseText) {
+    console.log('📮 Enviando prompt a Gemini API...');
+    let result;
+    try {
+      result = await model.generateContent(prompt);
+      console.log('✅ Respuesta recibida de Gemini');
+    } catch (genErr) {
+      console.error('❌ Error llamando a generateContent:', genErr);
       return {
         statusCode: 500,
-        body: JSON.stringify({ error: 'Sin respuesta de Gemini' })
+        body: JSON.stringify({ error: 'Error en Gemini API: ' + (genErr as any).message })
+      };
+    }
+    
+    const response = await result.response;
+    console.log('📥 Response object:', { contentLength: response?.content?.length || 0 });
+
+    const responseText = response.text();
+    console.log('📄 Response text length:', responseText?.length || 0);
+    
+    if (!responseText || responseText.trim().length === 0) {
+      console.error('❌ Gemini devolvió respuesta vacía');
+      console.error('Response parts:', response?.content?.parts?.length || 0);
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: 'Sin respuesta de Gemini (vacía)' })
       };
     }
 
@@ -135,10 +154,12 @@ Responde SOLO con JSON válido (sin explicaciones ni markdown):
       body: JSON.stringify({ ...dietPlan, id: planId })
     };
   } catch (error: any) {
-    console.error('Error:', error);
+    console.error('🚨 ERROR NO CAPTURADO:', error);
+    console.error('Stack:', error?.stack || 'N/A');
+    console.error('Tipo:', typeof error, Object.keys(error || {}).slice(0, 10));
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: error.message })
+      body: JSON.stringify({ error: 'Error interno: ' + (error?.message || String(error)) })
     };
   }
 };
