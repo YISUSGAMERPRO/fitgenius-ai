@@ -21,6 +21,32 @@ function App() {
   const [isEditing, setIsEditing] = useState(false);
   const [portal, setPortal] = useState<PortalType>('landing');
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [isLoadingSession, setIsLoadingSession] = useState(true);
+
+  // Recuperar sesión guardada al cargar la app
+  useEffect(() => {
+    const savedAccount = localStorage.getItem('currentUserAccount');
+    const savedUser = localStorage.getItem('userProfile');
+    
+    if (savedAccount) {
+      try {
+        const account = JSON.parse(savedAccount);
+        setCurrentUserAccount(account);
+        setPortal('user');
+        
+        if (savedUser) {
+          const profile = JSON.parse(savedUser);
+          setUser(profile);
+        }
+      } catch (error) {
+        console.error('Error recuperando sesión:', error);
+        localStorage.removeItem('currentUserAccount');
+        localStorage.removeItem('userProfile');
+      }
+    }
+    
+    setIsLoadingSession(false);
+  }, []);
 
   const handleViewChange = useCallback((newView: ViewState) => {
     setView(newView);
@@ -29,10 +55,14 @@ function App() {
   const handleUserLogin = useCallback(async (account: UserAccount) => {
     setCurrentUserAccount(account);
     
+    // Guardar en localStorage
+    localStorage.setItem('currentUserAccount', JSON.stringify(account));
+    
     // Intentar obtener el perfil desde la base de datos
     const profile = await api.getProfile(account.id);
     if (profile) {
       setUser(profile);
+      localStorage.setItem('userProfile', JSON.stringify(profile));
     }
   }, []);
 
@@ -40,6 +70,9 @@ function App() {
     if (!currentUserAccount) return;
     
     setUser(profile);
+    
+    // Guardar en localStorage
+    localStorage.setItem('userProfile', JSON.stringify(profile));
     
     // Guardar el perfil en la base de datos
     await api.saveProfile({
@@ -58,7 +91,16 @@ function App() {
     setUser(null);
     setCurrentUserAccount(null);
     setPortal('landing');
+    
+    // Limpiar localStorage
+    localStorage.removeItem('currentUserAccount');
+    localStorage.removeItem('userProfile');
   }, []);
+
+  // Mostrar pantalla de carga mientras se recupera la sesión
+  if (isLoadingSession) {
+    return <LoadingScreen />;
+  }
 
   if (portal === 'landing') return <LandingPage onStart={() => setPortal('user')} />;
   if (portal === 'admin') return <GymAdminView onBack={() => setPortal('user')} />;
