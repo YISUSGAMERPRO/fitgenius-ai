@@ -234,7 +234,7 @@ export const api = {
     getWorkout: async (userId: string): Promise<any> => {
         return getCachedOrFetch(`workout_${userId}`, async () => {
             try {
-                const res = await fetch(`${API_BASE_URL}/workout/${userId}`);
+                const res = await fetch(`${API_BASE_URL}/workouts/${userId}`);
                 if (!res.ok) {
                     if (res.status === 404) return null;
                     throw new Error('Error al obtener rutina');
@@ -251,7 +251,7 @@ export const api = {
     getDiet: async (userId: string): Promise<any> => {
         return getCachedOrFetch(`diet_${userId}`, async () => {
             try {
-                const res = await fetch(`${API_BASE_URL}/diet/${userId}`);
+                const res = await fetch(`${API_BASE_URL}/diets/${userId}`);
                 if (!res.ok) {
                     if (res.status === 404) return null;
                     throw new Error('Error al obtener dieta');

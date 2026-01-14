@@ -23,7 +23,11 @@ const handler: Handler = async (event) => {
       };
     }
 
-    const databaseUrl = process.env.VITE_API_DATABASE_URL || process.env.DATABASE_URL;
+    // Permitir múltiples nombres de variable de entorno usados por Netlify/Neon
+    const databaseUrl = process.env.VITE_API_DATABASE_URL 
+      || process.env.NETLIFY_DATABASE_URL_UNPOOLED 
+      || process.env.NETLIFY_DATABASE_URL 
+      || process.env.DATABASE_URL;
     
     const ai = new GoogleGenAI({ apiKey: geminiApiKey });
     
@@ -110,7 +114,7 @@ Responde SOLO con JSON válido (sin explicaciones ni markdown):
         
         console.log('✅ Dieta guardada en BD');
       } catch (dbErr) {
-        console.warn('⚠️ No se pudo guardar en BD:', dbErr);
+        console.warn('⚠️ No se pudo guardar en BD (Netlify Function generate-diet):', dbErr);
         // No es error fatal, devolvemos la dieta generada
       } finally {
         if (pool) await pool.end();
