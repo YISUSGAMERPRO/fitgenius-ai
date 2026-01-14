@@ -200,6 +200,7 @@ app.post('/api/generate-workout', async (req, res) => {
         }`;
 
         // Llamar a Gemini
+        console.log('📤 Llamando a Gemini API...');
         const response = await ai.models.generateContent({
             model: "gemini-2.0-flash-exp",
             contents: prompt,
@@ -209,24 +210,38 @@ app.post('/api/generate-workout', async (req, res) => {
             }
         });
 
+        console.log('📥 Respuesta de Gemini recibida');
+        
         if (!response.text) {
+            console.error('❌ No se recibió texto en la respuesta:', response);
             throw new Error('No se recibió respuesta de la IA');
         }
 
-        const workoutPlan = JSON.parse(response.text);
+        console.log('🔍 Parseando JSON...');
+        let workoutPlan;
+        try {
+            workoutPlan = JSON.parse(response.text);
+        } catch (parseErr) {
+            console.error('❌ Error parseando JSON. Respuesta:', response.text);
+            throw new Error(`Error parseando JSON: ${parseErr.message}`);
+        }
+
         const planId = Date.now().toString();
 
         // Guardar en la base de datos
+        console.log('💾 Guardando en base de datos...');
         await pool.query(
             `INSERT INTO workout_plans (id, user_id, title, plan_data, created_at) 
              VALUES ($1, $2, $3, $4, NOW())`,
             [planId, userId, workoutPlan.title || 'Plan de Entrenamiento', JSON.stringify(workoutPlan)]
         );
 
+        console.log('✅ Rutina generada exitosamente');
         res.json({ ...workoutPlan, id: planId });
     } catch (err) {
-        console.error('Error generando workout:', err.message);
-        res.status(500).json({ error: err.message });
+        console.error('❌ Error generando workout:', err.message);
+        console.error('Stack trace:', err.stack);
+        res.status(500).json({ error: err.message, details: err.stack });
     }
 });
 
@@ -278,6 +293,7 @@ app.post('/api/generate-diet', async (req, res) => {
         }`;
 
         // Llamar a Gemini
+        console.log('📤 Llamando a Gemini API para dieta...');
         const response = await ai.models.generateContent({
             model: "gemini-2.0-flash-exp",
             contents: prompt,
@@ -287,24 +303,38 @@ app.post('/api/generate-diet', async (req, res) => {
             }
         });
 
+        console.log('📥 Respuesta de Gemini recibida');
+        
         if (!response.text) {
+            console.error('❌ No se recibió texto en la respuesta:', response);
             throw new Error('No se recibió respuesta de la IA');
         }
 
-        const dietPlan = JSON.parse(response.text);
+        console.log('🔍 Parseando JSON...');
+        let dietPlan;
+        try {
+            dietPlan = JSON.parse(response.text);
+        } catch (parseErr) {
+            console.error('❌ Error parseando JSON. Respuesta:', response.text);
+            throw new Error(`Error parseando JSON: ${parseErr.message}`);
+        }
+
         const planId = Date.now().toString();
 
         // Guardar en la base de datos
+        console.log('💾 Guardando en base de datos...');
         await pool.query(
             `INSERT INTO diet_plans (id, user_id, title, plan_data, created_at) 
              VALUES ($1, $2, $3, $4, NOW())`,
             [planId, userId, dietPlan.title || 'Plan de Nutrición', JSON.stringify(dietPlan)]
         );
 
+        console.log('✅ Dieta generada exitosamente');
         res.json({ ...dietPlan, id: planId });
     } catch (err) {
-        console.error('Error generando diet:', err.message);
-        res.status(500).json({ error: err.message });
+        console.error('❌ Error generando diet:', err.message);
+        console.error('Stack trace:', err.stack);
+        res.status(500).json({ error: err.message, details: err.stack });
     }
 });
 
