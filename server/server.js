@@ -105,31 +105,38 @@ const connectionConfig = getConnectionConfig();
 // Detectar driver según esquema
 if (typeof connectionConfig === 'string' && connectionConfig.startsWith('postgres')) {
     usePostgres = true;
-    pgPool = new Pool({
-        connectionString: connectionConfig,
-        ssl: { rejectUnauthorized: false }
-    });
-    // Wrapper para uniformar interfaz
-    db = {
-        query: (sql, params, cb) => {
-            // Convertir ? a $1, $2, ...
-            let idx = 0;
-            const pgSql = sql.replace(/\?/g, () => `$${++idx}`);
-            pgPool.query(pgSql, params)
-                .then(result => cb(null, result.rows))
-                .catch(err => cb(err));
-        }
-    };
-    pgPool.connect()
-        .then(client => {
-            client.release();
-            console.log('✅ Conectado a la base de datos PostgreSQL con éxito.');
-            createTablesIfNotExist();
-        })
-        .catch(err => {
-            console.error('❌ Error conectando a PostgreSQL:', err.message);
-            console.log('PG connection string:', connectionConfig.replace(/:[^:]*@/, ':****@'));
+    
+    // Crear Pool directamente sin parsear la URL manualmente
+    try {
+        pgPool = new Pool({
+            connectionString: connectionConfig
         });
+        
+        // Wrapper para uniformar interfaz
+        db = {
+            query: (sql, params, cb) => {
+                // Convertir ? a $1, $2, ...
+                let idx = 0;
+                const pgSql = sql.replace(/\?/g, () => `$${++idx}`);
+                pgPool.query(pgSql, params)
+                    .then(result => cb(null, result.rows))
+                    .catch(err => cb(err));
+            }
+        };
+        
+        pgPool.connect()
+            .then(client => {
+                client.release();
+                console.log('✅ Conectado a la base de datos PostgreSQL con éxito.');
+                createTablesIfNotExist();
+            })
+            .catch(err => {
+                console.error('❌ Error conectando a PostgreSQL:', err.message);
+                console.log('PG connection string (masked):', connectionConfig.substring(0, 50) + '...');
+            });
+    } catch (err) {
+        console.error('❌ Error inicializando PostgreSQL Pool:', err.message);
+    }
 } else {
     // MySQL por defecto
     db = mysql.createConnection(connectionConfig);
