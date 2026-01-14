@@ -107,14 +107,22 @@ if (typeof connectionConfig === 'string' && connectionConfig.startsWith('postgre
     usePostgres = true;
     
     try {
-        // Parsear URL manualmente para evitar problemas con pg-connection-string
-        const urlObj = new URL(connectionConfig);
+        // Parsear URL PostgreSQL manualmente
+        const pgUrlRegex = /^postgresql:\/\/([^:]+):([^@]+)@([^:/]+)(?::(\d+))?\/([^?]+)(?:\?(.*))?$/;
+        const match = connectionConfig.match(pgUrlRegex);
+        
+        if (!match) {
+            throw new Error('Invalid PostgreSQL URL format');
+        }
+        
+        const [, user, password, host, port, database, queryString] = match;
+        
         const pgConfig = {
-            user: urlObj.username,
-            password: urlObj.password,
-            host: urlObj.hostname,
-            port: urlObj.port || 5432,
-            database: urlObj.pathname.substring(1), // Remover el '/' inicial
+            user: user,
+            password: password,
+            host: host,
+            port: parseInt(port) || 5432,
+            database: database,
             ssl: { rejectUnauthorized: false }
         };
         
