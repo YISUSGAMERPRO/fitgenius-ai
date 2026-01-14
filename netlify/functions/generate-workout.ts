@@ -24,8 +24,45 @@ const handler: Handler = async (event) => {
     const genAI = new GoogleGenerativeAI(geminiApiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
     
-    // Prompt simplificado para Gemini
-    const prompt = `Genera un plan de entrenamiento de 7 días SOLO en JSON válido para alguien con objetivo: ${profile.goal}. Sin explicaciones, SOLO JSON.`;
+    // Prompt que genera la estructura exacta esperada
+    const prompt = `
+Genera SOLO JSON válido (sin explicaciones) para un plan de entrenamiento de 7 días con esta estructura EXACTA:
+{
+  "title": "Tipo de entrenamiento",
+  "description": "Descripción breve del plan",
+  "frequency": "X días por semana",
+  "estimatedDuration": "Duración estimada",
+  "difficulty": "Principiante|Intermedio|Avanzado",
+  "durationWeeks": 8,
+  "periodizationModel": "Linear Periodization",
+  "progressionGuide": "Cómo progresar",
+  "schedule": [
+    {
+      "dayName": "Día 1",
+      "focus": "Grupo muscular",
+      "exercises": [
+        {
+          "name": "Nombre ejercicio",
+          "sets": "3",
+          "reps": "12",
+          "weight": "Kg",
+          "rest": "60 segundos",
+          "instructions": "Cómo hacerlo"
+        }
+      ]
+    }
+  ],
+  "medicalAnalysis": {
+    "injuries": [],
+    "modifications": [],
+    "severity": "None"
+  }
+}
+
+Usuario: objetivo = ${profile.goal}
+Tipo de entrenamiento: ${workoutType}
+
+Responde SOLO con el JSON, sin markdown, sin explicaciones.`;
     
     console.log('📮 Llamando Gemini...');
     const result = await model.generateContent(prompt);
