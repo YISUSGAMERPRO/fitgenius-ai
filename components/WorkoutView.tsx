@@ -227,6 +227,41 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
                    
                    return {
                        ...ex,
+                // Loading Screen for Workout Generation
+                if (loading) {
+                    return (
+                        <div className="min-h-screen flex items-center justify-center bg-slate-950">
+                            <div className="glass-card p-12 rounded-3xl text-center max-w-md border border-white/5 animate-fadeIn">
+                                <div className="mb-6 flex justify-center">
+                                    <div className="relative w-20 h-20">
+                                        <div className="absolute inset-0 bg-brand-500/20 rounded-full animate-pulse"></div>
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <Loader2 className="w-10 h-10 text-brand-400 animate-spin" />
+                                        </div>
+                                    </div>
+                                </div>
+                                <h3 className="text-2xl font-bold text-white mb-2">Generando tu Rutina Personalizada</h3>
+                                <p className="text-slate-400 mb-4">Nuestro entrenador IA está diseñando un plan optimizado para ti...</p>
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-3 text-slate-300 text-sm">
+                                        <Circle className="w-2 h-2 fill-brand-400 text-brand-400" />
+                                        Analizando tu perfil
+                                    </div>
+                                    <div className="flex items-center gap-3 text-slate-300 text-sm">
+                                        <Circle className="w-2 h-2 fill-brand-400 text-brand-400" />
+                                        Seleccionando ejercicios
+                                    </div>
+                                    <div className="flex items-center gap-3 text-slate-300 text-sm">
+                                        <Circle className="w-2 h-2 fill-brand-400 text-brand-400" />
+                                        Optimizando progresión
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                }
+
+                if (showGenerator || !plan) {
                        performedSets: performedSets
                    };
                 })
