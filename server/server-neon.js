@@ -1,3 +1,5 @@
+// ===== SERVIDOR FITGENIUS NEON POSTGRESQL =====
+// Redeploy: 2026-01-14 08:55 - Agregar endpoints de IA
 const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
