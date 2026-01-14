@@ -110,21 +110,42 @@ if (typeof connectionConfig === 'string' && connectionConfig.startsWith('postgre
         // Parsear URL PostgreSQL manualmente sin usar pg-connection-string
         // postgresql://user:password@host:port/database?options
         const url = connectionConfig;
+        console.log('📡 URL a parsear:', url.substring(0, 50) + '...');
         
         // Extraer protocolo
         const afterProto = url.replace('postgresql://', '');
+        console.log('📡 Después de protocolo:', afterProto.substring(0, 50) + '...');
         
         // Separar usuario:password de host
-        const [credentials, rest] = afterProto.split('@');
-        const [user, password] = credentials.split(':');
+        const atIndex = afterProto.indexOf('@');
+        if (atIndex === -1) throw new Error('No se encontró @ en la URL');
+        
+        const credentials = afterProto.substring(0, atIndex);
+        const rest = afterProto.substring(atIndex + 1);
+        
+        const colonIndex = credentials.indexOf(':');
+        if (colonIndex === -1) throw new Error('No se encontró : en credentials');
+        
+        const user = credentials.substring(0, colonIndex);
+        const password = credentials.substring(colonIndex + 1);
+        
+        console.log('📡 User:', user);
         
         // Separar host:port/database?options
-        const [hostPort, dbAndQuery] = rest.split('/');
-        const [host, portStr] = hostPort.split(':');
+        const slashIndex = rest.indexOf('/');
+        if (slashIndex === -1) throw new Error('No se encontró / en rest');
+        
+        const hostPort = rest.substring(0, slashIndex);
+        const dbAndQuery = rest.substring(slashIndex + 1);
+        
+        const hostColonIndex = hostPort.indexOf(':');
+        const host = hostColonIndex === -1 ? hostPort : hostPort.substring(0, hostColonIndex);
+        const portStr = hostColonIndex === -1 ? '5432' : hostPort.substring(hostColonIndex + 1);
         const port = parseInt(portStr) || 5432;
         
         // Separar database y query params
-        const [database] = dbAndQuery.split('?');
+        const questionIndex = dbAndQuery.indexOf('?');
+        const database = questionIndex === -1 ? dbAndQuery : dbAndQuery.substring(0, questionIndex);
         
         const pgConfig = {
             user: user,
