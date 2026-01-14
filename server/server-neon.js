@@ -26,6 +26,16 @@ app.use(cors());
 app.use(express.json());
 app.use(compression());
 
+// DEBUG: Mostrar todas las variables de entorno disponibles
+console.log('=== DEBUG: Variables de Entorno Disponibles ===');
+console.log('DATABASE_URL:', process.env.DATABASE_URL ? 'SÍ' : 'NO');
+console.log('NETLIFY_DATABASE_URL_UNPOOLED:', process.env.NETLIFY_DATABASE_URL_UNPOOLED ? 'SÍ' : 'NO');
+console.log('NETLIFY_DATABASE_URL:', process.env.NETLIFY_DATABASE_URL ? 'SÍ' : 'NO');
+console.log('POSTGRES_URL:', process.env.POSTGRES_URL ? 'SÍ' : 'NO');
+console.log('PORT:', process.env.PORT);
+console.log('GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? 'SÍ' : 'NO');
+console.log('=========================================');
+
 // Conexión a Neon PostgreSQL
 console.log('📡 Buscando configuración de base de datos...');
 
@@ -33,24 +43,24 @@ console.log('📡 Buscando configuración de base de datos...');
 function getDatabaseURL() {
     // PRIORIDAD 1: DATABASE_URL estándar
     if (process.env.DATABASE_URL) {
-        console.log('📡 Usando DATABASE_URL');
+        console.log('✅ Encontrada: DATABASE_URL');
         return process.env.DATABASE_URL;
     }
     
     // PRIORIDAD 2: Netlify Neon (variables de extensión)
     if (process.env.NETLIFY_DATABASE_URL_UNPOOLED) {
-        console.log('📡 Usando NETLIFY_DATABASE_URL_UNPOOLED');
+        console.log('✅ Encontrada: NETLIFY_DATABASE_URL_UNPOOLED');
         return process.env.NETLIFY_DATABASE_URL_UNPOOLED;
     }
     
     if (process.env.NETLIFY_DATABASE_URL) {
-        console.log('📡 Usando NETLIFY_DATABASE_URL');
+        console.log('✅ Encontrada: NETLIFY_DATABASE_URL');
         return process.env.NETLIFY_DATABASE_URL;
     }
     
     // PRIORIDAD 3: Postgres explícito
     if (process.env.POSTGRES_URL) {
-        console.log('📡 Usando POSTGRES_URL');
+        console.log('✅ Encontrada: POSTGRES_URL');
         return process.env.POSTGRES_URL;
     }
     
@@ -65,6 +75,8 @@ if (!DATABASE_URL) {
     console.error('❌ CRÍTICO: DATABASE_URL no está configurada');
     process.exit(1);
 }
+
+console.log('📝 DATABASE_URL:', DATABASE_URL.substring(0, 50) + '...');
 
 const pool = new Pool({
     connectionString: DATABASE_URL,
