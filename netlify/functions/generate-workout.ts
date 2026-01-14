@@ -1,5 +1,5 @@
 import { Handler } from '@netlify/functions';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Pool } from 'pg';
 
 const handler: Handler = async (event) => {
@@ -29,7 +29,8 @@ const handler: Handler = async (event) => {
       || process.env.NETLIFY_DATABASE_URL 
       || process.env.DATABASE_URL;
     
-    const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+    const genAI = new GoogleGenerativeAI(geminiApiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
     
     const prompt = `Eres un entrenador personal experto. Genera una rutina de entrenamiento personalizada en SOLO JSON válido.
 
@@ -71,12 +72,11 @@ Responde SOLO con JSON válido (sin explicaciones ni markdown):
   "medicalAnalysis": {"severity": "None", "modifications": ["Tu rutina está optimizada para tu perfil"]}
 }`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash-exp",
-      contents: prompt
-    });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
 
-    if (!response.text) {
+    const responseText = response.text();
+    if (!responseText) {
       return {
         statusCode: 500,
         body: JSON.stringify({ error: 'Sin respuesta de Gemini' })
@@ -84,7 +84,7 @@ Responde SOLO con JSON válido (sin explicaciones ni markdown):
     }
 
     // Extraer JSON del markdown
-    let jsonText = response.text;
+    let jsonText = responseText;
     const markdownMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (markdownMatch) {
       jsonText = markdownMatch[1].trim();
