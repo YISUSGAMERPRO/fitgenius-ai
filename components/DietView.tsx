@@ -187,12 +187,25 @@ const DietView: React.FC<Props> = ({ user, userId }) => {
   const handleGenerate = async () => {
     setLoading(true);
     setError('');
+    const timeoutId = setTimeout(() => {
+      console.error('Timeout: generar dieta tomó más de 60 segundos');
+      setLoading(false);
+      setError('La generación de dieta tardó demasiado. Intenta de nuevo.');
+    }, 60000);
+    
     try {
+      console.log('🍽️ Iniciando generación de dieta...');
       const budgetVal = parseFloat(budgetAmount);
       const budget = (budgetVal > 0) ? { amount: budgetVal, frequency: budgetFrequency } : undefined;
       
       const plan = await api.generateDiet(userId, user, dietType, preferences, budget);
+      clearTimeout(timeoutId);
       
+      if (!plan) {
+        throw new Error('La función no devolvió un plan de dieta');
+      }
+      
+      console.log('✅ Plan de dieta recibido:', plan);
       // Inject start date to track the week accurately
       plan.startDate = new Date().toISOString();
 
@@ -201,8 +214,9 @@ const DietView: React.FC<Props> = ({ user, userId }) => {
       setCompletedMeals({}); // Reset progress on new diet
       setActiveTab('plan'); // Switch to view mode
     } catch (e) {
+      clearTimeout(timeoutId);
       const errorMsg = e instanceof Error ? e.message : String(e);
-      console.error('Error detallado:', e);
+      console.error('❌ Error detallado:', e);
       setError(`Error al generar dieta: ${errorMsg}`);
     } finally {
       setLoading(false);

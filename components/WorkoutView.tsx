@@ -132,16 +132,31 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
 
     const handleGenerate = async () => {
         setLoading(true);
+        const timeoutId = setTimeout(() => {
+            console.error('Timeout: generar rutina tomó más de 60 segundos');
+            setLoading(false);
+            alert('La generación de rutina tardó demasiado. Intenta de nuevo.');
+        }, 60000);
+        
         try {
+            console.log('🏋️ Iniciando generación de rutina...');
             const newPlan = await api.generateWorkout(userId, user, genType);
+            clearTimeout(timeoutId);
+            
+            if (!newPlan) {
+                throw new Error('La función no devolvió un plan');
+            }
+            
+            console.log('✅ Plan recibido:', newPlan);
             newPlan.startDate = new Date().toISOString();
             setPlan(newPlan);
             localStorage.setItem(STORAGE_KEY_PLAN, JSON.stringify(newPlan));
             setShowGenerator(false);
             setSelectedDayIndex(0);
         } catch (error) {
+            clearTimeout(timeoutId);
             const errorMsg = error instanceof Error ? error.message : String(error);
-            console.error("Error detallado:", error);
+            console.error("❌ Error detallado:", error);
             alert(`Error generando rutina: ${errorMsg}`);
         } finally {
             setLoading(false);
