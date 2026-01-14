@@ -65,39 +65,6 @@ const handler: Handler = async (event) => {
 };
 
 export { handler };
-
-    console.log('📮 Llamando Gemini...');
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-    
-    console.log('✅ Respuesta:', text?.substring(0, 100));
-    
-    if (!text) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ error: 'Respuesta vacía de Gemini' })
-      };
-    }
-
-    // Extraer JSON
-    let json = text;
-    const match = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (match) json = match[1];
-    else {
-      const start = text.indexOf('{');
-      const end = text.lastIndexOf('}');
-      if (start > -1 && end > -1) json = text.substring(start, end + 1);
-    }
-
-    const planId = Date.now().toString();
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify({ id: planId, title: dietType, plan: JSON.parse(json) })
-    };
-  } catch (error: any) {
-    console.error('❌ Error:', error?.message);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: error?.message || 'Error desconocido' })
