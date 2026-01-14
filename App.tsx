@@ -49,6 +49,9 @@ function App() {
     });
     
     setCurrentUserAccount(prev => prev ? { ...prev, profile } : null);
+    
+    // Ir directamente al dashboard
+    setView('calendar');
   }, [currentUserAccount]);
 
   const handleLogout = useCallback(() => {
