@@ -214,8 +214,8 @@ async function initializeTables() {
     }
     
     // Iniciar servidor SIEMPRE, incluso si hay error en tablas
-    const server = app.listen(PORT, () => {
-        console.log(`\n🚀 Servidor corriendo en puerto ${PORT}`);
+    const server = app.listen(PORT, '0.0.0.0', () => {
+        console.log(`\n🚀 Servidor corriendo en 0.0.0.0:${PORT}`);
         console.log(`📡 DATABASE_URL: ${process.env.DATABASE_URL ? 'Configurada ✅' : 'NO configurada ❌'}`);
         console.log(`🤖 GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? 'Configurada ✅' : 'NO configurada ❌'}\n`);
     });
@@ -223,6 +223,14 @@ async function initializeTables() {
     // Prevenir cierre del servidor
     server.on('error', (err) => {
         console.error('❌ Error del servidor:', err);
+    });
+    
+    // Mantener el proceso activo
+    process.on('SIGTERM', () => {
+        console.log('⚠️ SIGTERM recibido, cerrando gracefully...');
+        server.close(() => {
+            process.exit(0);
+        });
     });
 })();
 
