@@ -6,7 +6,7 @@ const handler: Handler = async (event) => {
   let pool: Pool | null = null;
   
   try {
-    const { userId, profile, dietType } = JSON.parse(event.body || '{}');
+    const { userId, profile, dietType, preferences, budget } = JSON.parse(event.body || '{}');
     
     if (!userId || !profile || !dietType) {
       return {
@@ -14,6 +14,10 @@ const handler: Handler = async (event) => {
         body: JSON.stringify({ error: 'Faltan parámetros' })
       };
     }
+    
+    console.log('🍽️ Generando dieta para usuario:', userId);
+    console.log('Preferencias:', preferences);
+    console.log('Presupuesto:', budget);
 
     const geminiApiKey = process.env.GEMINI_API_KEY;
     if (!geminiApiKey) {
@@ -42,11 +46,12 @@ Datos del usuario:
 - Objetivo: ${profile.goal}
 - Nivel de actividad: ${profile.activityLevel}
 - Tipo de cuerpo: ${profile.bodyType || 'No especificado'}
-- Preferencias: ${profile.equipment.join(', ') || 'Ninguna'}
-- Restricciones: ${profile.injuries || 'Ninguna'}
+- Restricciones/alergias: ${profile.injuries || 'Ninguna'}
 - Tipo de dieta solicitada: ${dietType}
+${preferences && preferences.length > 0 ? `- Preferencias alimenticias: ${preferences.join(', ')}` : ''}
+${budget ? `- Presupuesto diario aprox: $${budget}` : ''}
 
-Genera un plan completo de 7 días con 3-4 comidas diarias balanceadas nutricionalmente. Personaliza según el objetivo y restricciones.
+Genera un plan completo de 7 días con 3-4 comidas diarias balanceadas nutricionalmente. Personaliza según el objetivo, restricciones, preferencias y presupuesto.
 
 Responde SOLO con JSON válido (sin explicaciones ni markdown):
 {

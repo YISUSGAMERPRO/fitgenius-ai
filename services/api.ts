@@ -206,14 +206,15 @@ export const api = {
         }
     },
 
-    generateDiet: async (userId: string, profile: UserProfile, dietType: string, budget?: string): Promise<any> => {
+    generateDiet: async (userId: string, profile: UserProfile, dietType: string, preferences?: string[], budget?: any): Promise<any> => {
         try {
             console.log('📤 Enviando solicitud de generación de dieta a Netlify Function...');
+            console.log('Datos enviados:', { userId, profile, dietType, preferences, budget });
             // Usar Netlify Function en lugar del servidor
             const res = await fetch('/.netlify/functions/generate-diet', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId, profile, dietType, budget })
+                body: JSON.stringify({ userId, profile, dietType, preferences, budget })
             });
             
             if (!res.ok) {
