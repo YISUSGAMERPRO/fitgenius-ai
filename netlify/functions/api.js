@@ -1,5 +1,4 @@
-const { Pool } = require('pg');
-const { GoogleGenAI } = require('@google/genai');
+import { Pool } from 'pg';
 
 // Conexión a Neon PostgreSQL
 const pool = new Pool({
@@ -7,18 +6,8 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
-// Inicializar Gemini AI
-const apiKey = process.env.GEMINI_API_KEY;
-let ai = null;
-
-if (apiKey) {
-    ai = new GoogleGenAI({ apiKey });
-} else {
-    console.warn('⚠️ GEMINI_API_KEY no configurada');
-}
-
 // Función handler de Netlify Functions
-exports.handler = async (event, context) => {
+export const handler = async (event, context) => {
     // CORS headers
     const headers = {
         'Access-Control-Allow-Origin': '*',
