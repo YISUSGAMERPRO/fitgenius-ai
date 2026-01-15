@@ -128,7 +128,10 @@ function App() {
       <aside className="w-72 hidden md:flex flex-col border-r border-white/5 bg-slate-900/40">
         <div className="p-8 pb-4 flex items-center gap-3 cursor-pointer" onClick={() => setPortal('landing')}>
           <div className="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center shadow-lg"><Activity className="text-white" /></div>
-          <span className="text-xl font-bold text-white">FitGenius<span className="text-brand-400">AI</span></span>
+          <div className="flex flex-col">
+            <span className="text-xl font-bold text-white">FitGenius<span className="text-brand-400">AI</span></span>
+            <span className="text-[10px] font-bold text-amber-400 bg-amber-500/20 px-2 py-0.5 rounded border border-amber-500/30 w-fit">VERSIÓN BETA</span>
+          </div>
         </div>
         <nav className="flex-1 px-4 py-4 space-y-2">
           <NavButton active={view === 'calendar'} onClick={() => handleViewChange('calendar')} icon={<LayoutDashboard />} label="Diario" />
@@ -146,7 +149,10 @@ function App() {
         <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-white/10 bg-slate-900/50 sticky top-0 z-20">
           <button className="flex items-center gap-2" onClick={() => setPortal('landing')}>
             <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center shadow"><Activity className="text-white w-5 h-5" /></div>
-            <span className="text-white font-bold">FitGenius<span className="text-brand-400">AI</span></span>
+            <div className="flex items-center gap-2">
+              <span className="text-white font-bold">FitGenius<span className="text-brand-400">AI</span></span>
+              <span className="text-[8px] font-bold text-amber-400 bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/30">BETA</span>
+            </div>
           </button>
           <button aria-label="Abrir menú" onClick={() => setIsMobileNavOpen(true)} className="p-2 rounded-lg bg-white/5 text-white hover:bg-white/10 transition-colors">
             <Menu className="w-5 h-5" />

@@ -5,6 +5,110 @@ export enum Gender {
   Other = 'Otro'
 }
 
+// ==================== IMC (Índice de Masa Corporal) ====================
+export interface IMCResult {
+  value: number;
+  category: 'bajo_peso' | 'normal' | 'sobrepeso' | 'obesidad_1' | 'obesidad_2' | 'obesidad_3';
+  label: string;
+  color: string;
+  description: string;
+  recommendations: string[];
+}
+
+export function calculateIMC(weight: number, heightCm: number): number {
+  if (!weight || !heightCm || heightCm <= 0) return 0;
+  const heightM = heightCm / 100;
+  return parseFloat((weight / (heightM * heightM)).toFixed(1));
+}
+
+export function getIMCCategory(imc: number): IMCResult {
+  if (imc < 18.5) {
+    return {
+      value: imc,
+      category: 'bajo_peso',
+      label: 'Bajo Peso',
+      color: '#3B82F6', // blue
+      description: 'Tu peso está por debajo del rango saludable.',
+      recommendations: [
+        'Aumentar ingesta calórica gradualmente',
+        'Priorizar proteínas de alta calidad',
+        'Entrenamiento de fuerza para ganar masa muscular',
+        'Consultar con nutricionista si el bajo peso persiste'
+      ]
+    };
+  } else if (imc < 25) {
+    return {
+      value: imc,
+      category: 'normal',
+      label: 'Peso Normal',
+      color: '#22C55E', // green
+      description: 'Tu peso está en el rango saludable. ¡Excelente!',
+      recommendations: [
+        'Mantener hábitos alimenticios actuales',
+        'Continuar con actividad física regular',
+        'Monitorear peso mensualmente',
+        'Enfocarse en mejorar composición corporal'
+      ]
+    };
+  } else if (imc < 30) {
+    return {
+      value: imc,
+      category: 'sobrepeso',
+      label: 'Sobrepeso',
+      color: '#F59E0B', // amber
+      description: 'Tu peso está ligeramente por encima del rango saludable.',
+      recommendations: [
+        'Reducir ingesta calórica gradualmente (déficit 15-20%)',
+        'Aumentar actividad cardiovascular',
+        'Priorizar alimentos integrales y proteínas',
+        'Reducir azúcares y alimentos procesados'
+      ]
+    };
+  } else if (imc < 35) {
+    return {
+      value: imc,
+      category: 'obesidad_1',
+      label: 'Obesidad Grado I',
+      color: '#F97316', // orange
+      description: 'Obesidad moderada. Se recomienda supervisión médica.',
+      recommendations: [
+        'Consultar con profesional de salud',
+        'Plan de alimentación estructurado',
+        'Ejercicio de bajo impacto inicialmente',
+        'Monitorear presión arterial y glucosa'
+      ]
+    };
+  } else if (imc < 40) {
+    return {
+      value: imc,
+      category: 'obesidad_2',
+      label: 'Obesidad Grado II',
+      color: '#EF4444', // red
+      description: 'Obesidad severa. Supervisión médica necesaria.',
+      recommendations: [
+        'Supervisión médica obligatoria',
+        'Plan nutricional con profesional',
+        'Comenzar con caminatas suaves',
+        'Evaluar factores de riesgo cardiovascular'
+      ]
+    };
+  } else {
+    return {
+      value: imc,
+      category: 'obesidad_3',
+      label: 'Obesidad Grado III',
+      color: '#DC2626', // dark red
+      description: 'Obesidad mórbida. Atención médica prioritaria.',
+      recommendations: [
+        'Atención médica inmediata',
+        'Posible evaluación para tratamiento especializado',
+        'Ejercicio solo bajo supervisión',
+        'Apoyo psicológico recomendado'
+      ]
+    };
+  }
+}
+
 export enum Goal {
   LoseWeight = 'Perder grasa',
   GainMuscle = 'Ganar músculo',
@@ -60,6 +164,11 @@ export interface ExerciseSet {
   isWarmup?: boolean;
 }
 
+export interface ExerciseAlternative {
+  name: string;
+  reason: string;
+}
+
 export interface Exercise {
   name: string;
   sets: number;
@@ -73,6 +182,7 @@ export interface Exercise {
   category?: 'warmup' | 'main' | 'cooldown'; // New field for sectioning
   performedSets?: ExerciseSet[]; // For manual/pro logging
   userNotes?: string; // Personal notes for the exercise
+  alternatives?: ExerciseAlternative[]; // Alternative exercises if equipment is not available
 }
 
 export interface WorkoutDay {
@@ -126,8 +236,15 @@ export interface Macronutrients {
   calories: number;
 }
 
+export interface MealAlternative {
+  name: string;
+  swapFor: string;
+  reason: string;
+}
+
 export interface Meal {
   name: string;
+  type?: string; // Desayuno, Almuerzo, Cena, etc.
   description: string;
   ingredients: string[];
   instructions?: string[]; // Step-by-step preparation
@@ -135,6 +252,8 @@ export interface Meal {
   protein: number;
   carbs: number;
   fats: number;
+  prepTime?: string;
+  alternatives?: MealAlternative[]; // Alternative ingredients
 }
 
 export interface DietDay {

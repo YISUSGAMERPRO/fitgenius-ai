@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { UserProfile, WorkoutPlan, Exercise, WorkoutLog, ExerciseSet } from '../types';
+import { UserProfile, WorkoutPlan, Exercise, WorkoutLog, ExerciseSet, ExerciseAlternative } from '../types';
 import { api } from '../services/api';
-// import { getExerciseAlternative } from '../services/geminiService'; // DESHABILITADO TEMPORALMENTE
-import { Play, Pause, Power, Trophy, Loader2, RefreshCw, ChevronDown, ChevronUp, Video, CheckCircle2, Circle, Dumbbell, Calendar, Info, AlertTriangle, ArrowRight, Settings2, Youtube } from 'lucide-react';
+import { Play, Pause, Power, Trophy, Loader2, RefreshCw, ChevronDown, ChevronUp, Video, CheckCircle2, Circle, Dumbbell, Calendar, Info, AlertTriangle, ArrowRight, Settings2, Youtube, Shuffle, X, Timer, Volume2, VolumeX } from 'lucide-react';
 import { ConfirmModal } from './ConfirmModal';
+
+// Opciones de tiempo de descanso predefinidas (en segundos)
+const REST_TIME_OPTIONS = [30, 45, 60, 90, 120, 180];
 
 interface Props {
   user: UserProfile;
@@ -58,6 +60,14 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
     // UI State
     const [regeneratingExerciseId, setRegeneratingExerciseId] = useState<string | null>(null);
     const [showFinishModal, setShowFinishModal] = useState(false);
+    const [showAlternativesModal, setShowAlternativesModal] = useState<{ dayIdx: number; exerciseIdx: number; exercise: Exercise } | null>(null);
+
+    // Rest Timer State
+    const [restTimeSeconds, setRestTimeSeconds] = useState(60); // Tiempo de descanso seleccionado
+    const [restTimerActive, setRestTimerActive] = useState(false);
+    const [restTimerRemaining, setRestTimerRemaining] = useState(0);
+    const [soundEnabled, setSoundEnabled] = useState(true);
+    const restTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     // Timer Ref
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -118,6 +128,87 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
         }
     }, [sessionSeconds, completedSets, isSessionActive, selectedDayIndex, userId]);
 
+    // Rest Timer Logic
+    useEffect(() => {
+        if (restTimerActive && restTimerRemaining > 0) {
+            restTimerRef.current = setInterval(() => {
+                setRestTimerRemaining(prev => {
+                    if (prev <= 1) {
+                        // Timer finished
+                        setRestTimerActive(false);
+                        if (soundEnabled) {
+                            playNotificationSound();
+                        }
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+        } else {
+            if (restTimerRef.current) clearInterval(restTimerRef.current);
+        }
+        return () => {
+            if (restTimerRef.current) clearInterval(restTimerRef.current);
+        };
+    }, [restTimerActive, soundEnabled]);
+
+    // Cargar preferencia de tiempo de descanso
+    useEffect(() => {
+        const savedRestTime = localStorage.getItem(`fitgenius_rest_time_${userId}`);
+        if (savedRestTime) {
+            setRestTimeSeconds(parseInt(savedRestTime) || 60);
+        }
+    }, [userId]);
+
+    // Play notification sound when timer ends
+    const playNotificationSound = () => {
+        try {
+            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 800;
+            oscillator.type = 'sine';
+            gainNode.gain.value = 0.3;
+            
+            oscillator.start();
+            setTimeout(() => {
+                oscillator.frequency.value = 1000;
+            }, 150);
+            setTimeout(() => {
+                oscillator.frequency.value = 1200;
+            }, 300);
+            setTimeout(() => {
+                oscillator.stop();
+                audioContext.close();
+            }, 500);
+        } catch (e) {
+            console.log('Audio not supported');
+        }
+    };
+
+    // Start rest timer
+    const startRestTimer = (customTime?: number) => {
+        const time = customTime || restTimeSeconds;
+        setRestTimerRemaining(time);
+        setRestTimerActive(true);
+    };
+
+    // Stop rest timer
+    const stopRestTimer = () => {
+        setRestTimerActive(false);
+        setRestTimerRemaining(0);
+    };
+
+    // Update rest time preference
+    const updateRestTime = (seconds: number) => {
+        setRestTimeSeconds(seconds);
+        localStorage.setItem(`fitgenius_rest_time_${userId}`, seconds.toString());
+    };
+
     // Helper: Fail-safe ID Generator
     const generateSafeId = () => {
         try {
@@ -172,25 +263,108 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
     const handleSwapExercise = async (dayIdx: number, exerciseIdx: number) => {
         if (!plan) return;
         const exercise = plan.schedule[dayIdx].exercises[exerciseIdx];
+        
+        // Si el ejercicio tiene alternativas pre-generadas, mostrar el modal
+        if (exercise.alternatives && exercise.alternatives.length > 0) {
+            setShowAlternativesModal({ dayIdx, exerciseIdx, exercise });
+            return;
+        }
+        
+        // Si no tiene alternativas, generar una nueva con IA
         const regenId = `${dayIdx}-${exerciseIdx}`;
         setRegeneratingExerciseId(regenId);
 
         try {
-            // TODO: Implementar endpoint de Netlify Function para alternativas de ejercicio
-            // const avoid = plan.schedule[dayIdx].exercises.map(e => e.name);
-            // const newExercise = await getExerciseAlternative(exercise, user, avoid);
+            const exercisesToAvoid = plan.schedule[dayIdx].exercises.map(e => e.name);
+            const newExercise = await api.swapExercise(
+                exercise.name,
+                exercise.muscleGroup,
+                user.equipment || [],
+                exercisesToAvoid,
+                user
+            );
             
-            alert("⚠️ La función de intercambio de ejercicios está temporalmente deshabilitada. Pronto estará disponible.");
-            
-            // const newSchedule = [...plan.schedule];
-            // newSchedule[dayIdx].exercises[exerciseIdx] = newExercise;
-            // const updatedPlan = { ...plan, schedule: newSchedule };
-            
-            // setPlan(updatedPlan);
-            // localStorage.setItem(STORAGE_KEY_PLAN, JSON.stringify(updatedPlan));
+            if (newExercise) {
+                const newSchedule = [...plan.schedule];
+                newSchedule[dayIdx].exercises[exerciseIdx] = {
+                    ...newExercise,
+                    category: exercise.category // Mantener la categoría original
+                };
+                const updatedPlan = { ...plan, schedule: newSchedule };
+                
+                setPlan(updatedPlan);
+                localStorage.setItem(STORAGE_KEY_PLAN, JSON.stringify(updatedPlan));
+            }
         } catch (e) {
             console.error(e);
-            alert("No se pudo regenerar el ejercicio.");
+            alert("No se pudo regenerar el ejercicio. Intenta de nuevo.");
+        } finally {
+            setRegeneratingExerciseId(null);
+        }
+    };
+
+    const handleSelectAlternative = (alternativeName: string) => {
+        if (!plan || !showAlternativesModal) return;
+        
+        const { dayIdx, exerciseIdx, exercise } = showAlternativesModal;
+        
+        // Crear el ejercicio alternativo con los mismos parámetros base
+        const alternativeExercise: Exercise = {
+            ...exercise,
+            name: alternativeName,
+            videoQuery: alternativeName, // Actualizar para búsqueda de video
+            alternatives: [
+                { name: exercise.name, reason: 'Ejercicio original' },
+                ...(exercise.alternatives || []).filter(a => a.name !== alternativeName)
+            ]
+        };
+        
+        const newSchedule = [...plan.schedule];
+        newSchedule[dayIdx].exercises[exerciseIdx] = alternativeExercise;
+        const updatedPlan = { ...plan, schedule: newSchedule };
+        
+        setPlan(updatedPlan);
+        localStorage.setItem(STORAGE_KEY_PLAN, JSON.stringify(updatedPlan));
+        setShowAlternativesModal(null);
+    };
+
+    const handleGenerateNewAlternative = async () => {
+        if (!plan || !showAlternativesModal) return;
+        
+        const { dayIdx, exerciseIdx, exercise } = showAlternativesModal;
+        setShowAlternativesModal(null);
+        
+        const regenId = `${dayIdx}-${exerciseIdx}`;
+        setRegeneratingExerciseId(regenId);
+
+        try {
+            const exercisesToAvoid = [
+                ...plan.schedule[dayIdx].exercises.map(e => e.name),
+                ...(exercise.alternatives?.map(a => a.name) || [])
+            ];
+            
+            const newExercise = await api.swapExercise(
+                exercise.name,
+                exercise.muscleGroup,
+                user.equipment || [],
+                exercisesToAvoid,
+                user
+            );
+            
+            if (newExercise) {
+                const newSchedule = [...plan.schedule];
+                newSchedule[dayIdx].exercises[exerciseIdx] = {
+                    ...newExercise,
+                    category: exercise.category
+                };
+                const updatedPlan = { ...plan, schedule: newSchedule };
+                
+                setPlan(updatedPlan);
+                localStorage.setItem(STORAGE_KEY_PLAN, JSON.stringify(updatedPlan));
+            }
+        } catch (e) {
+            console.error(e);
+            alert("No se pudo generar alternativa. Intenta de nuevo.");
         } finally {
             setRegeneratingExerciseId(null);
         }
@@ -285,10 +459,17 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
 
     const toggleSet = (exerciseIdx: number, setIdx: number) => {
         const key = `${exerciseIdx}-${setIdx}`;
+        const wasCompleted = completedSets[key];
+        
         setCompletedSets(prev => ({
             ...prev,
             [key]: !prev[key]
         }));
+        
+        // Si se marca como completada (no estaba completada antes), iniciar timer
+        if (!wasCompleted && isSessionActive) {
+            startRestTimer();
+        }
     };
 
     const getYoutubeLink = (query: string) => {
@@ -419,6 +600,129 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
                 isDestructive={false}
              />
 
+             {/* Alternatives Modal */}
+             {showAlternativesModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
+                    <div className="glass-card p-6 rounded-2xl max-w-md w-full border border-white/10 animate-slideUp">
+                        <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <h3 className="text-lg font-bold text-white">Cambiar Ejercicio</h3>
+                                <p className="text-sm text-slate-400">Selecciona una alternativa para:</p>
+                                <p className="text-brand-400 font-semibold mt-1">{showAlternativesModal.exercise.name}</p>
+                            </div>
+                            <button 
+                                onClick={() => setShowAlternativesModal(null)}
+                                className="p-2 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-white transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        
+                        <div className="space-y-2 mb-4">
+                            {showAlternativesModal.exercise.alternatives?.map((alt, idx) => (
+                                <button
+                                    key={idx}
+                                    onClick={() => handleSelectAlternative(alt.name)}
+                                    className="w-full p-4 bg-slate-800/50 hover:bg-slate-700 border border-slate-700 hover:border-brand-500/50 rounded-xl text-left transition-all group"
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="font-semibold text-white group-hover:text-brand-300">{alt.name}</p>
+                                            <p className="text-xs text-slate-400 mt-1">{alt.reason}</p>
+                                        </div>
+                                        <Shuffle className="w-4 h-4 text-slate-500 group-hover:text-brand-400" />
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                        
+                        <div className="border-t border-slate-700 pt-4">
+                            <button
+                                onClick={handleGenerateNewAlternative}
+                                className="w-full py-3 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all"
+                            >
+                                <RefreshCw className="w-4 h-4" />
+                                Generar Nueva Alternativa con IA
+                            </button>
+                        </div>
+                    </div>
+                </div>
+             )}
+
+             {/* Rest Timer Overlay */}
+             {restTimerActive && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+                    <div className="glass-card p-8 rounded-3xl max-w-sm w-full border border-brand-500/30 animate-slideUp text-center">
+                        {/* Timer Icon */}
+                        <div className="mb-6">
+                            <div className="w-24 h-24 mx-auto bg-brand-500/20 rounded-full flex items-center justify-center animate-pulse">
+                                <Timer className="w-12 h-12 text-brand-400" />
+                            </div>
+                        </div>
+
+                        {/* Timer Display */}
+                        <h2 className="text-lg font-bold text-slate-300 uppercase tracking-widest mb-2">Tiempo de Descanso</h2>
+                        <div className="text-7xl font-mono font-black text-white mb-6 tabular-nums">
+                            {Math.floor(restTimerRemaining / 60)}:{(restTimerRemaining % 60).toString().padStart(2, '0')}
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className="w-full bg-slate-800 rounded-full h-3 mb-6 overflow-hidden">
+                            <div 
+                                className="bg-gradient-to-r from-brand-500 to-brand-400 h-full rounded-full transition-all duration-1000 ease-linear"
+                                style={{ width: `${(restTimerRemaining / restTimeSeconds) * 100}%` }}
+                            />
+                        </div>
+
+                        {/* Quick Time Selection */}
+                        <div className="mb-6">
+                            <p className="text-xs text-slate-500 mb-3 uppercase tracking-wider">Cambiar tiempo</p>
+                            <div className="grid grid-cols-3 gap-2">
+                                {REST_TIME_OPTIONS.map(time => (
+                                    <button
+                                        key={time}
+                                        onClick={() => {
+                                            updateRestTime(time);
+                                            startRestTimer(time);
+                                        }}
+                                        className={`py-2 px-3 rounded-xl text-sm font-bold transition-all ${
+                                            restTimeSeconds === time 
+                                                ? 'bg-brand-600 text-white border-2 border-brand-400' 
+                                                : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700 hover:text-white'
+                                        }`}
+                                    >
+                                        {time < 60 ? `${time}s` : `${time / 60}m`}{time === 90 && '30s'}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Sound Toggle & Skip */}
+                        <div className="flex items-center justify-center gap-4">
+                            <button
+                                onClick={() => setSoundEnabled(!soundEnabled)}
+                                className={`p-3 rounded-xl border transition-all ${
+                                    soundEnabled 
+                                        ? 'bg-slate-800 text-brand-400 border-brand-500/30' 
+                                        : 'bg-slate-800/50 text-slate-500 border-slate-700'
+                                }`}
+                                title={soundEnabled ? 'Sonido activado' : 'Sonido desactivado'}
+                            >
+                                {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+                            </button>
+                            
+                            <button
+                                onClick={stopRestTimer}
+                                className="flex-1 py-3 px-6 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all"
+                            >
+                                <X className="w-5 h-5" />
+                                Saltar Descanso
+                            </button>
+                        </div>
+                    </div>
+                </div>
+             )}
+
              {/* Header Section */}
              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                  <div>
@@ -485,6 +789,23 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
                           </div>
 
                           <div className="flex items-center gap-2">
+                              {/* Rest Timer Quick Settings */}
+                              <div className="hidden sm:flex items-center gap-1 mr-2 bg-slate-800/50 rounded-xl px-2 py-1 border border-slate-700">
+                                  <Timer className="w-4 h-4 text-brand-400" />
+                                  <select
+                                      value={restTimeSeconds}
+                                      onChange={(e) => updateRestTime(parseInt(e.target.value))}
+                                      className="bg-transparent text-xs text-slate-300 font-mono border-none outline-none cursor-pointer"
+                                      title="Tiempo de descanso entre series"
+                                  >
+                                      {REST_TIME_OPTIONS.map(time => (
+                                          <option key={time} value={time} className="bg-slate-800">
+                                              {time < 60 ? `${time}s` : time === 60 ? '1m' : time === 90 ? '1m30s' : time === 120 ? '2m' : '3m'}
+                                          </option>
+                                      ))}
+                                  </select>
+                              </div>
+
                               <button 
                                   onClick={handleSuspendSession}
                                   className="p-3 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition-colors"
@@ -583,6 +904,7 @@ const ExerciseCard: React.FC<{
     
     // Ensure sets is a number
     const setsCount = Number(exercise.sets) || 0;
+    const hasAlternatives = exercise.alternatives && exercise.alternatives.length > 0;
 
     return (
         <div className={`glass-card rounded-2xl border border-white/5 overflow-hidden transition-all duration-300 ${isActiveMode ? 'bg-slate-900/80 border-slate-700' : 'hover:border-brand-500/30'} relative group`}>
@@ -598,6 +920,7 @@ const ExerciseCard: React.FC<{
                     <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                             {exercise.category === 'warmup' && <div className="px-2 py-0.5 rounded text-[10px] font-bold bg-yellow-500/20 text-yellow-500 border border-yellow-500/20 uppercase">Calentamiento</div>}
+                            {exercise.category === 'cooldown' && <div className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/20 uppercase">Enfriamiento</div>}
                             <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wider">{exercise.muscleGroup}</span>
                         </div>
                         <h3 className="text-lg font-bold text-white group-hover:text-brand-100 transition-colors">{exercise.name}</h3>
@@ -606,10 +929,21 @@ const ExerciseCard: React.FC<{
                     {!isActiveMode && (
                         <button 
                             onClick={onSwap}
-                            className="p-2 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-brand-400 transition-colors"
-                            title="Cambiar Ejercicio"
+                            className={`p-2 rounded-lg transition-colors flex items-center gap-1 ${
+                                hasAlternatives 
+                                    ? 'bg-brand-500/10 text-brand-400 hover:bg-brand-500/20' 
+                                    : 'hover:bg-slate-800 text-slate-500 hover:text-brand-400'
+                            }`}
+                            title={hasAlternatives ? 'Ver Alternativas' : 'Generar Alternativa'}
                         >
-                            <RefreshCw className="w-4 h-4" />
+                            {hasAlternatives ? (
+                                <>
+                                    <Shuffle className="w-4 h-4" />
+                                    <span className="text-[10px] font-bold">{exercise.alternatives?.length}</span>
+                                </>
+                            ) : (
+                                <RefreshCw className="w-4 h-4" />
+                            )}
                         </button>
                     )}
                 </div>

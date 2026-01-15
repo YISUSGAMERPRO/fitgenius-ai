@@ -264,5 +264,118 @@ export const api = {
                 return null;
             }
         });
+    },
+
+    // --- INTERCAMBIO DE EJERCICIOS ---
+    swapExercise: async (
+        currentExercise: string, 
+        muscleGroup: string, 
+        availableEquipment: string[], 
+        exercisesToAvoid: string[],
+        userProfile?: UserProfile
+    ): Promise<any> => {
+        try {
+            console.log('🔄 Solicitando alternativa para:', currentExercise);
+            const res = await fetch('/.netlify/functions/swap-exercise', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    currentExercise, 
+                    muscleGroup, 
+                    availableEquipment,
+                    exercisesToAvoid,
+                    userProfile
+                })
+            });
+            
+            if (!res.ok) {
+                const error = await res.json();
+                console.error('❌ Error:', error);
+                throw new Error(error.error || 'Error al obtener alternativa');
+            }
+            
+            const data = await res.json();
+            console.log('✅ Alternativa obtenida:', data.newExercise?.name);
+            return data.newExercise;
+        } catch (e) {
+            console.error('Error intercambiando ejercicio:', e);
+            throw e;
+        }
+    },
+
+    // --- INTERCAMBIO DE PLATILLOS ---
+    swapMeal: async (
+        currentMeal: any,
+        mealType: string,
+        dietType: string,
+        targetMacros?: { calories: number; protein: number; carbs: number; fats: number },
+        preferences?: string[],
+        mealsToAvoid?: string[],
+        userProfile?: UserProfile
+    ): Promise<any> => {
+        try {
+            console.log('🔄 Solicitando alternativa para platillo:', currentMeal.name);
+            const res = await fetch('/.netlify/functions/swap-meal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    currentMeal,
+                    mealType,
+                    dietType,
+                    targetMacros,
+                    preferences,
+                    mealsToAvoid,
+                    userProfile
+                })
+            });
+            
+            if (!res.ok) {
+                const error = await res.json();
+                console.error('❌ Error:', error);
+                throw new Error(error.error || 'Error al obtener alternativa de platillo');
+            }
+            
+            const data = await res.json();
+            console.log('✅ Platillo alternativo obtenido:', data.newMeal?.name);
+            return data.newMeal;
+        } catch (e) {
+            console.error('Error intercambiando platillo:', e);
+            throw e;
+        }
+    },
+
+    // --- ASISTENTE MÉDICO ---
+    getMedicalAdvice: async (
+        messages: { role: string; text: string }[],
+        userProfile: UserProfile,
+        workout?: any,
+        diet?: any
+    ): Promise<string> => {
+        try {
+            console.log('🩺 Consultando al Dr. FitGenius...');
+            const res = await fetch('/.netlify/functions/medical-assistant', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    messages,
+                    userProfile,
+                    workout,
+                    diet
+                })
+            });
+            
+            if (!res.ok) {
+                const error = await res.json();
+                console.error('❌ Error:', error);
+                throw new Error(error.error || 'Error en consulta médica');
+            }
+            
+            const data = await res.json();
+            console.log('✅ Dr. FitGenius respondió');
+            return data.response;
+        } catch (e) {
+            console.error('Error en asistente médico:', e);
+            throw e;
+        }
     }
 };

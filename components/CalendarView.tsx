@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, CheckCircle2, Trophy, Calendar as CalendarIcon, Clock, Dumbbell, Hash, Trash2, Flame, RotateCcw, Scale, Layers, Activity, PieChart as PieChartIcon, TrendingUp, Plus, CalendarPlus, Utensils, ArrowRight, MapPin, Coffee, AlertCircle, CheckSquare, Square, Play, Stethoscope, ChevronDown, CalendarClock, Eye, X, List, ChefHat, PartyPopper, Star, Circle, Check } from 'lucide-react';
-import { WorkoutLog, WorkoutPlan, DietPlan, ViewState, Exercise, Meal, WorkoutDay } from '../types';
+import { ChevronLeft, ChevronRight, CheckCircle2, Trophy, Calendar as CalendarIcon, Clock, Dumbbell, Hash, Trash2, Flame, RotateCcw, Scale, Layers, Activity, PieChart as PieChartIcon, TrendingUp, Plus, CalendarPlus, Utensils, ArrowRight, MapPin, Coffee, AlertCircle, CheckSquare, Square, Play, Stethoscope, ChevronDown, CalendarClock, Eye, X, List, ChefHat, PartyPopper, Star, Circle, Check, Target, Info } from 'lucide-react';
+import { WorkoutLog, WorkoutPlan, DietPlan, ViewState, Exercise, Meal, WorkoutDay, UserProfile, calculateIMC, getIMCCategory } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as ReTooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { ConfirmModal } from './ConfirmModal';
 
@@ -26,11 +26,15 @@ const CalendarView: React.FC<Props> = ({ userId, onNavigate }) => {
   const [activeWorkout, setActiveWorkout] = useState<WorkoutPlan | null>(null);
   const [activeDiet, setActiveDiet] = useState<DietPlan | null>(null);
   const [completedMeals, setCompletedMeals] = useState<Record<string, boolean>>({});
+  
+  // User Profile for IMC
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   // Modals State
   const [viewWorkoutModal, setViewWorkoutModal] = useState<WorkoutDay | null>(null);
   const [viewMealModal, setViewMealModal] = useState<Meal | null>(null);
   const [logToDelete, setLogToDelete] = useState<string | null>(null);
+  const [showIMCModal, setShowIMCModal] = useState(false);
 
   // Toast State
   const [celebrationMsg, setCelebrationMsg] = useState<string | null>(null);
@@ -40,6 +44,13 @@ const CalendarView: React.FC<Props> = ({ userId, onNavigate }) => {
   const STORAGE_KEY_DIET = `fitgenius_diet_${userId}`;
   const STORAGE_KEY_WORKOUT = `fitgenius_workout_${userId}`;
   const STORAGE_KEY_COMPLETED = `fitgenius_diet_completed_${userId}`;
+
+  // Calculate IMC
+  const imcResult = useMemo(() => {
+    if (!userProfile?.weight || !userProfile?.height) return null;
+    const imcValue = calculateIMC(userProfile.weight, userProfile.height);
+    return getIMCCategory(imcValue);
+  }, [userProfile?.weight, userProfile?.height]);
 
   useEffect(() => {
     loadHistory();
@@ -53,6 +64,12 @@ const CalendarView: React.FC<Props> = ({ userId, onNavigate }) => {
     const savedCompleted = localStorage.getItem(STORAGE_KEY_COMPLETED);
     if (savedCompleted) {
         try { setCompletedMeals(JSON.parse(savedCompleted)); } catch(e) {}
+    }
+    
+    // Load user profile for IMC
+    const savedProfile = localStorage.getItem('userProfile');
+    if (savedProfile) {
+        try { setUserProfile(JSON.parse(savedProfile)); } catch(e) {}
     }
 
     // Select today by default
@@ -881,6 +898,147 @@ const CalendarView: React.FC<Props> = ({ userId, onNavigate }) => {
               </div>
           </div>
       </div>
+
+      {/* IMC Card Section */}
+      {imcResult && (
+          <>
+              {/* IMC Modal */}
+              {showIMCModal && (
+                  <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
+                      <div className="bg-slate-900 w-full max-w-md rounded-3xl border border-slate-700 shadow-2xl overflow-hidden">
+                          <div className="p-6 border-b border-slate-700 flex items-center justify-between" style={{ background: `linear-gradient(135deg, ${imcResult.color}20, transparent)` }}>
+                              <div>
+                                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                      <Scale className="w-5 h-5" style={{ color: imcResult.color }} /> Índice de Masa Corporal
+                                  </h3>
+                                  <p className="text-slate-400 text-sm">Análisis detallado de tu IMC</p>
+                              </div>
+                              <button onClick={() => setShowIMCModal(false)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-full text-white transition-colors">
+                                  <X className="w-5 h-5" />
+                              </button>
+                          </div>
+                          
+                          <div className="p-6 space-y-6">
+                              {/* IMC Value Display */}
+                              <div className="text-center">
+                                  <div className="text-6xl font-black mb-2" style={{ color: imcResult.color }}>
+                                      {imcResult.value}
+                                  </div>
+                                  <div className="text-xl font-bold text-white mb-1">{imcResult.label}</div>
+                                  <p className="text-sm text-slate-400">{imcResult.description}</p>
+                              </div>
+                              
+                              {/* IMC Scale Visual */}
+                              <div className="relative">
+                                  <div className="flex h-4 rounded-full overflow-hidden">
+                                      <div className="flex-1 bg-blue-500" title="Bajo peso: <18.5"></div>
+                                      <div className="flex-1 bg-green-500" title="Normal: 18.5-24.9"></div>
+                                      <div className="flex-1 bg-amber-500" title="Sobrepeso: 25-29.9"></div>
+                                      <div className="flex-1 bg-orange-500" title="Obesidad I: 30-34.9"></div>
+                                      <div className="flex-1 bg-red-500" title="Obesidad II+: 35+"></div>
+                                  </div>
+                                  {/* Marker */}
+                                  <div 
+                                      className="absolute top-6 transform -translate-x-1/2 flex flex-col items-center"
+                                      style={{ left: `${Math.min(Math.max((imcResult.value - 15) / 25 * 100, 2), 98)}%` }}
+                                  >
+                                      <div className="w-0 h-0 border-l-4 border-r-4 border-b-8 border-transparent" style={{ borderBottomColor: imcResult.color }}></div>
+                                      <div className="text-xs font-bold mt-1" style={{ color: imcResult.color }}>{imcResult.value}</div>
+                                  </div>
+                              </div>
+                              
+                              {/* Scale Legend */}
+                              <div className="flex justify-between text-[10px] font-bold text-slate-500 px-1 mt-8">
+                                  <span>15</span>
+                                  <span>18.5</span>
+                                  <span>25</span>
+                                  <span>30</span>
+                                  <span>35</span>
+                                  <span>40</span>
+                              </div>
+                              
+                              {/* User Data */}
+                              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-800">
+                                  <div className="text-center p-3 bg-slate-800/50 rounded-xl">
+                                      <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">Peso</p>
+                                      <p className="text-xl font-bold text-white">{userProfile?.weight} kg</p>
+                                  </div>
+                                  <div className="text-center p-3 bg-slate-800/50 rounded-xl">
+                                      <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">Altura</p>
+                                      <p className="text-xl font-bold text-white">{userProfile?.height} cm</p>
+                                  </div>
+                              </div>
+                              
+                              {/* Recommendations */}
+                              <div>
+                                  <h4 className="text-sm font-bold text-slate-300 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                      <Target className="w-4 h-4 text-brand-400" /> Recomendaciones
+                                  </h4>
+                                  <ul className="space-y-2">
+                                      {imcResult.recommendations.map((rec, i) => (
+                                          <li key={i} className="flex items-start gap-2 text-sm text-slate-400">
+                                              <Check className="w-4 h-4 text-brand-400 flex-shrink-0 mt-0.5" />
+                                              {rec}
+                                          </li>
+                                      ))}
+                                  </ul>
+                              </div>
+                              
+                              {/* Disclaimer */}
+                              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex gap-3">
+                                  <Info className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                                  <p className="text-xs text-amber-300/80">
+                                      El IMC es una referencia general. No distingue entre masa muscular y grasa. Consulta a un profesional de salud para una evaluación completa.
+                                  </p>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              )}
+              
+              {/* IMC Summary Card */}
+              <div 
+                  onClick={() => setShowIMCModal(true)}
+                  className="glass-card p-5 rounded-2xl border border-white/5 cursor-pointer hover:border-slate-600 transition-all group"
+              >
+                  <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                          <div className="p-3 rounded-xl" style={{ backgroundColor: `${imcResult.color}20` }}>
+                              <Scale className="w-6 h-6" style={{ color: imcResult.color }} />
+                          </div>
+                          <div>
+                              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Tu IMC</p>
+                              <div className="flex items-baseline gap-2">
+                                  <span className="text-2xl font-black text-white">{imcResult.value}</span>
+                                  <span className="text-sm font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: `${imcResult.color}20`, color: imcResult.color }}>
+                                      {imcResult.label}
+                                  </span>
+                              </div>
+                          </div>
+                      </div>
+                      
+                      {/* Mini Progress Bar */}
+                      <div className="hidden sm:block w-32">
+                          <div className="flex h-2 rounded-full overflow-hidden mb-1">
+                              <div className="flex-1 bg-blue-500"></div>
+                              <div className="flex-1 bg-green-500"></div>
+                              <div className="flex-1 bg-amber-500"></div>
+                              <div className="flex-1 bg-orange-500"></div>
+                              <div className="flex-1 bg-red-500"></div>
+                          </div>
+                          <div className="flex justify-between text-[8px] text-slate-600">
+                              <span>18.5</span>
+                              <span>25</span>
+                              <span>30</span>
+                              <span>40</span>
+                          </div>
+                      </div>
+                      
+                      <ArrowRight className="w-5 h-5 text-slate-500 group-hover:text-white group-hover:translate-x-1 transition-all" />
+                  </div>
+              </div>
+          </>
+      )}
 
       {/* Expanded Monthly Analysis Charts */}
       {/* ... (Existing Charts) ... */}

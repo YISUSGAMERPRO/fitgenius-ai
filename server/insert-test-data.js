@@ -31,8 +31,8 @@ async function insertTestData() {
         let insertedCount = 0;
         for (const member of members) {
             const result = await pool.query(
-                `INSERT INTO gym_members (name, plan, status, last_payment_amount, created_at) 
-                 VALUES ($1, $2, $3, $4, NOW())
+                `INSERT INTO gym_members (name, plan, status, last_payment_amount, start_date, created_at) 
+                 VALUES ($1, $2, $3, $4, CURRENT_DATE, NOW())
                  RETURNING id, name, plan, status`,
                 [member.name, member.plan, member.status, member.payment]
             );

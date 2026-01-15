@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { UserProfile, WorkoutPlan, DietPlan } from '../types';
-// import { getMedicalAdvice } from '../services/geminiService'; // DESHABILITADO TEMPORALMENTE
+import { api } from '../services/api';
 import { Stethoscope, Send, User, Bot, AlertTriangle, Info, PlusCircle, ArrowDown, Activity, ShieldCheck, Thermometer, Trash2 } from 'lucide-react';
 import { ConfirmModal } from './ConfirmModal';
 
@@ -20,10 +20,14 @@ interface Message {
 const QUICK_PROMPTS = [
     "Me duele la rodilla al hacer sentadillas",
     "Siento un pinchazo en la espalda baja",
+    "¿Cuánta proteína debo consumir al día?",
     "¿Es seguro tomar Creatina?",
-    "Protocolo para dormir mejor y recuperar",
+    "Protocolo para dormir mejor",
     "Mareos durante el entrenamiento",
-    "¿Hielo o calor para una contractura?"
+    "¿Hielo o calor para una contractura?",
+    "Tengo agujetas muy fuertes",
+    "¿Puedo entrenar estando resfriado?",
+    "Calambres musculares frecuentes"
 ];
 
 const MedicalAssistantView: React.FC<Props> = ({ user, userId }) => {
@@ -113,10 +117,8 @@ const MedicalAssistantView: React.FC<Props> = ({ user, userId }) => {
           // Prepare history for API (excluding IDs and timestamps)
           const historyForAi = messages.concat(userMsg).map(m => ({ role: m.role, text: m.text }));
           
-          // TODO: Implementar endpoint de Netlify Function para asistente médico
-          // const responseText = await getMedicalAdvice(historyForAi, user, activeWorkout, activeDiet);
-          
-          const responseText = "⚠️ El asistente médico está temporalmente deshabilitado. Pronto estará disponible con funcionalidad mejorada.";
+          // Llamar al asistente médico
+          const responseText = await api.getMedicalAdvice(historyForAi, user, activeWorkout, activeDiet);
 
           const aiMsg: Message = {
               id: crypto.randomUUID(),

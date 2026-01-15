@@ -1,10 +1,9 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { UserProfile, DietPlan, Meal } from '../types';
+import { UserProfile, DietPlan, Meal, MealAlternative } from '../types';
 import { api } from '../services/api';
-// import { regenerateMeal } from '../services/geminiService'; // DESHABILITADO TEMPORALMENTE
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as ReTooltip, Legend } from 'recharts';
-import { BookOpen, Droplets, Utensils, RefreshCw, ChefHat, Salad, List, CheckCircle2, Filter, X, CalendarDays, GripVertical, Download, Printer, ChevronDown, ChevronUp, DollarSign, Wallet, TrendingUp, Flame, Settings2, LayoutTemplate, Info, Circle, Check, Loader2 } from 'lucide-react';
+import { BookOpen, Droplets, Utensils, RefreshCw, ChefHat, Salad, List, CheckCircle2, Filter, X, CalendarDays, GripVertical, Download, Printer, ChevronDown, ChevronUp, DollarSign, Wallet, TrendingUp, Flame, Settings2, LayoutTemplate, Info, Circle, Check, Loader2, Shuffle } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 
 interface Props {
@@ -81,6 +80,7 @@ const DietView: React.FC<Props> = ({ user, userId }) => {
   const [customPreference, setCustomPreference] = useState('');
   const [error, setError] = useState('');
   const [regeneratingMealIndex, setRegeneratingMealIndex] = useState<number | null>(null);
+  const [showMealAlternativesModal, setShowMealAlternativesModal] = useState<{ dayIdx: number; mealIdx: number; meal: Meal } | null>(null);
   
   // Budget State
   const [budgetAmount, setBudgetAmount] = useState<string>('');
@@ -231,43 +231,81 @@ const DietView: React.FC<Props> = ({ user, userId }) => {
 
   const handleSwapMeal = async (mealIndex: number) => {
     if (!diet || !diet.schedule) return;
+    
+    const currentDay = diet.schedule[selectedDayIndex];
+    const meal = currentDay.meals[mealIndex];
+    
+    // Si el platillo tiene alternativas de ingredientes, mostrar modal informativo
+    if (meal.alternatives && meal.alternatives.length > 0) {
+      setShowMealAlternativesModal({ dayIdx: selectedDayIndex, mealIdx: mealIndex, meal });
+      return;
+    }
+    
+    // Si no tiene alternativas, generar un platillo nuevo con IA
+    await generateNewMealAlternative(mealIndex);
+  };
+
+  const generateNewMealAlternative = async (mealIndex: number) => {
+    if (!diet || !diet.schedule) return;
+    
     setRegeneratingMealIndex(mealIndex);
     try {
-        // TODO: Implementar endpoint de Netlify Function para regenerar comidas
-        // const currentDay = diet.schedule[selectedDayIndex];
-        // const originalMeal = currentDay.meals[mealIndex];
+        const currentDay = diet.schedule[selectedDayIndex];
+        const originalMeal = currentDay.meals[mealIndex];
         
-        // const budgetVal = parseFloat(budgetAmount);
-        // const budget = (budgetVal > 0) ? { amount: budgetVal, frequency: budgetFrequency } : undefined;
+        // Obtener todos los platillos del plan para evitar repeticiones
+        const mealsToAvoid = diet.schedule.flatMap(day => day.meals.map(m => m.name));
+        
+        // Calcular macros objetivo basados en el platillo actual
+        const targetMacros = {
+            calories: originalMeal.calories,
+            protein: originalMeal.protein,
+            carbs: originalMeal.carbs,
+            fats: originalMeal.fats
+        };
+        
+        const newMeal = await api.swapMeal(
+            originalMeal,
+            originalMeal.type || 'Comida',
+            dietType,
+            targetMacros,
+            preferences,
+            mealsToAvoid,
+            user
+        );
+        
+        if (newMeal) {
+            // Deep clone to update
+            const updatedSchedule = [...diet.schedule];
+            updatedSchedule[selectedDayIndex] = {
+                ...currentDay,
+                meals: [...currentDay.meals]
+            };
+            updatedSchedule[selectedDayIndex].meals[mealIndex] = newMeal;
 
-        // const newMeal = await regenerateMeal(user, originalMeal, dietType, preferences, budget);
-        
-        alert("⚠️ La función de regenerar comidas está temporalmente deshabilitada. Pronto estará disponible.");
-        
-        // // Deep clone to update
-        // const updatedSchedule = [...diet.schedule];
-        // updatedSchedule[selectedDayIndex] = {
-        //     ...currentDay,
-        //     meals: [...currentDay.meals]
-        // };
-        // updatedSchedule[selectedDayIndex].meals[mealIndex] = newMeal;
-
-        // setDiet({ ...diet, schedule: updatedSchedule });
-        
-        // // Reset completion status for this specific meal slot if it changes
-        // const key = `${selectedDayIndex}-${mealIndex}`;
-        // if(completedMeals[key]) {
-        //     const newCompleted = {...completedMeals};
-        //     delete newCompleted[key];
-        //     setCompletedMeals(newCompleted);
-        // }
-
+            setDiet({ ...diet, schedule: updatedSchedule });
+            
+            // Reset completion status for this specific meal slot
+            const key = `${selectedDayIndex}-${mealIndex}`;
+            if(completedMeals[key]) {
+                const newCompleted = {...completedMeals};
+                delete newCompleted[key];
+                setCompletedMeals(newCompleted);
+            }
+        }
     } catch (e) {
         console.error(e);
         alert('No se pudo regenerar el platillo. Intenta de nuevo.');
     } finally {
         setRegeneratingMealIndex(null);
     }
+  };
+
+  const handleGenerateNewMealFromModal = async () => {
+    if (!showMealAlternativesModal) return;
+    const { mealIdx } = showMealAlternativesModal;
+    setShowMealAlternativesModal(null);
+    await generateNewMealAlternative(mealIdx);
   };
 
   const toggleMealCheck = (mealIndex: number) => {
@@ -445,6 +483,65 @@ const DietView: React.FC<Props> = ({ user, userId }) => {
             }
         }
         `}</style>
+
+      {/* Modal de Alternativas de Ingredientes */}
+      {showMealAlternativesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
+          <div className="glass-card p-6 rounded-2xl max-w-md w-full border border-white/10 animate-slideUp max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-lg font-bold text-white">Alternativas de Ingredientes</h3>
+                <p className="text-sm text-slate-400 mt-1">Para: <span className="text-green-400 font-semibold">{showMealAlternativesModal.meal.name}</span></p>
+              </div>
+              <button 
+                onClick={() => setShowMealAlternativesModal(null)}
+                className="p-2 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <p className="text-xs text-slate-500 mb-3">Puedes reemplazar estos ingredientes si no los tienes:</p>
+            
+            <div className="space-y-2 mb-4">
+              {showMealAlternativesModal.meal.alternatives?.map((alt, idx) => (
+                <div
+                  key={idx}
+                  className="p-4 bg-slate-800/50 border border-slate-700 rounded-xl"
+                >
+                  <div className="flex items-start gap-3">
+                    <Shuffle className="w-4 h-4 text-green-400 mt-1 flex-shrink-0" />
+                    <div>
+                      <p className="font-semibold text-white">{alt.name}</p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Reemplaza: <span className="text-orange-400">{alt.swapFor}</span>
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">{alt.reason}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <div className="border-t border-slate-700 pt-4 space-y-2">
+              <p className="text-xs text-slate-500 text-center mb-2">¿Prefieres un platillo completamente diferente?</p>
+              <button
+                onClick={handleGenerateNewMealFromModal}
+                className="w-full py-3 bg-green-600 hover:bg-green-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Generar Platillo Nuevo con IA
+              </button>
+              <button
+                onClick={() => setShowMealAlternativesModal(null)}
+                className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-medium text-sm"
+              >
+                Mantener Este Platillo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Tab Switcher */}
       <div className="flex justify-center mb-6 tab-switcher no-print">
@@ -909,6 +1006,7 @@ const ProgressBar = ({ label, current, target, color, bg, unit = '' }: any) => {
 
 const MealCard: React.FC<{ meal: Meal, onSwap: () => void, isRegenerating: boolean, isCompleted: boolean, onToggle: () => void }> = React.memo(({ meal, onSwap, isRegenerating, isCompleted, onToggle }) => {
     const [isExpanded, setIsExpanded] = useState(false);
+    const hasAlternatives = meal.alternatives && meal.alternatives.length > 0;
 
     return (
         <div className={`group bg-slate-900/40 backdrop-blur-md rounded-2xl border border-white/5 overflow-hidden hover:border-green-500/30 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/5 relative ${isRegenerating ? 'opacity-70' : ''} ${isCompleted ? 'opacity-60 bg-slate-900/20' : ''}`}>
@@ -944,14 +1042,24 @@ const MealCard: React.FC<{ meal: Meal, onSwap: () => void, isRegenerating: boole
                         </div>
                         
                         <div className="flex-1">
-                            <h3 className={`text-xl font-bold transition-all ${isCompleted ? 'text-slate-500 line-through' : 'text-white group-hover:text-green-100'}`}>
-                                {meal.name}
-                            </h3>
+                            <div className="flex items-center gap-2">
+                                <h3 className={`text-xl font-bold transition-all ${isCompleted ? 'text-slate-500 line-through' : 'text-white group-hover:text-green-100'}`}>
+                                    {meal.name}
+                                </h3>
+                                {meal.type && (
+                                    <span className="text-[10px] font-bold text-slate-500 bg-slate-800 px-2 py-0.5 rounded uppercase">
+                                        {meal.type}
+                                    </span>
+                                )}
+                            </div>
                             <div className={`flex flex-wrap gap-3 mt-2 text-sm font-medium ${isCompleted ? 'opacity-50 grayscale' : ''}`}>
                                 <span className="text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">{meal.calories} kcal</span>
                                 <span className="text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">P: {meal.protein}g</span>
                                 <span className="text-green-400 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20">C: {meal.carbs}g</span>
                                 <span className="text-yellow-400 bg-yellow-500/10 px-2 py-0.5 rounded border border-yellow-500/20">G: {meal.fats}g</span>
+                                {meal.prepTime && (
+                                    <span className="text-slate-400 bg-slate-800 px-2 py-0.5 rounded text-xs">⏱️ {meal.prepTime}</span>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -960,10 +1068,21 @@ const MealCard: React.FC<{ meal: Meal, onSwap: () => void, isRegenerating: boole
                         <button 
                             onClick={onSwap}
                             disabled={isRegenerating}
-                            className="self-start p-2 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-green-400 transition-colors border border-transparent hover:border-slate-700 no-print"
-                            title="Generar alternativa para este plato"
+                            className={`self-start p-2 rounded-lg transition-colors border no-print flex items-center gap-1 ${
+                                hasAlternatives 
+                                    ? 'bg-green-500/10 text-green-400 border-green-500/30 hover:bg-green-500/20' 
+                                    : 'hover:bg-slate-800 text-slate-500 hover:text-green-400 border-transparent hover:border-slate-700'
+                            }`}
+                            title={hasAlternatives ? 'Ver alternativas de ingredientes' : 'Generar platillo alternativo'}
                         >
-                            <RefreshCw className="w-4 h-4" />
+                            {hasAlternatives ? (
+                                <>
+                                    <Shuffle className="w-4 h-4" />
+                                    <span className="text-[10px] font-bold">{meal.alternatives?.length}</span>
+                                </>
+                            ) : (
+                                <RefreshCw className="w-4 h-4" />
+                            )}
                         </button>
                     )}
                 </div>
