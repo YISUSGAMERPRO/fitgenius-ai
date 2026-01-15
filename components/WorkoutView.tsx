@@ -4,6 +4,51 @@ import { api } from '../services/api';
 import { Play, Pause, Power, Trophy, Loader2, RefreshCw, ChevronDown, ChevronUp, Video, CheckCircle2, Circle, Dumbbell, Calendar, Info, AlertTriangle, ArrowRight, Settings2, Youtube, Shuffle, X, Timer, Volume2, VolumeX } from 'lucide-react';
 import { ConfirmModal } from './ConfirmModal';
 
+// Función para normalizar el plan de entrenamiento
+function normalizePlan(plan: any): WorkoutPlan | null {
+    if (!plan) return null;
+    
+    // Asegurar que schedule existe y es un array
+    if (!plan.schedule || !Array.isArray(plan.schedule)) {
+        console.warn('⚠️ Plan sin schedule válido');
+        return null;
+    }
+    
+    // Asegurar que cada día tiene la estructura correcta
+    const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+    const normalizedSchedule = days.map((dayName, index) => {
+        const existingDay = plan.schedule.find((d: any) => 
+            d.dayName === dayName || 
+            d.day === dayName ||
+            (d.dayName && d.dayName.toLowerCase().includes(dayName.toLowerCase()))
+        ) || plan.schedule[index];
+        
+        if (existingDay) {
+            return {
+                ...existingDay,
+                dayName: dayName,
+                exercises: existingDay.exercises || [],
+                focus: existingDay.focus || 'General'
+            };
+        }
+        
+        return {
+            dayName: dayName,
+            focus: 'Descanso',
+            exercises: [],
+            isRestDay: true
+        };
+    });
+    
+    return {
+        ...plan,
+        schedule: normalizedSchedule,
+        title: plan.title || 'Mi Plan de Entrenamiento',
+        description: plan.description || '',
+        recommendations: plan.recommendations || []
+    };
+}
+
 // Opciones de tiempo de descanso predefinidas (en segundos)
 const REST_TIME_OPTIONS = [30, 45, 60, 90, 120, 180];
 
@@ -82,7 +127,15 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
         const savedPlan = localStorage.getItem(STORAGE_KEY_PLAN);
         if (savedPlan) {
             try {
-                setPlan(JSON.parse(savedPlan));
+                const parsed = JSON.parse(savedPlan);
+                const normalized = normalizePlan(parsed);
+                if (normalized && normalized.schedule.some(d => d.exercises && d.exercises.length > 0)) {
+                    console.log('✅ Plan cargado y normalizado:', normalized.schedule.map(d => `${d.dayName}: ${d.exercises?.length || 0} ejercicios`));
+                    setPlan(normalized);
+                } else {
+                    console.warn('⚠️ Plan guardado está vacío o corrupto, mostrando generador');
+                    setShowGenerator(true);
+                }
             } catch (e) {
                 console.error("Error parsing plan", e);
                 setShowGenerator(true);
@@ -265,9 +318,17 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
                 throw new Error('Estructura inválida: falta schedule o está vacío');
             }
             
-            newPlan.startDate = new Date().toISOString();
-            setPlan(newPlan);
-            localStorage.setItem(STORAGE_KEY_PLAN, JSON.stringify(newPlan));
+            // Normalizar el plan antes de guardarlo
+            const normalizedPlan = normalizePlan(newPlan);
+            if (!normalizedPlan) {
+                throw new Error('No se pudo normalizar el plan recibido');
+            }
+            
+            normalizedPlan.startDate = new Date().toISOString();
+            console.log('📊 Plan normalizado:', normalizedPlan.schedule.map(d => `${d.dayName}: ${d.exercises?.length || 0} ejercicios`));
+            
+            setPlan(normalizedPlan);
+            localStorage.setItem(STORAGE_KEY_PLAN, JSON.stringify(normalizedPlan));
             setShowGenerator(false);
             setSelectedDayIndex(0);
         } catch (error) {
