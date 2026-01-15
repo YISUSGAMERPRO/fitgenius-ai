@@ -1207,6 +1207,67 @@ app.get('/api/sessions/:userId', cacheControl, (req, res) => {
     });
 });
 
+// 14. GUARDAR PLAN DE ENTRENAMIENTO (usado por Netlify Functions)
+app.post('/api/save-workout', async (req, res) => {
+    try {
+        const { userId, title, planData } = req.body || {};
+
+        if (!userId || !planData) {
+            return res.status(400).json({ error: 'Faltan parámetros: userId y planData son obligatorios' });
+        }
+
+        const id = require('crypto').randomUUID();
+        const sql = `INSERT INTO workout_plans (id, user_id, title, plan_data) VALUES (?, ?, ?, ?)`;
+        const params = [id, userId, title || 'Plan de Entrenamiento', JSON.stringify(planData)];
+
+        db.query(sql, params, (err) => {
+            if (err) {
+                console.error('❌ Error al guardar rutina en BD:', err);
+                return res.status(500).json({ error: 'Error al guardar en base de datos: ' + err.message });
+            }
+            console.log('✅ Rutina guardada con éxito:', id);
+            res.json({ success: true, planId: id });
+        });
+    } catch (error) {
+        console.error('❌ Error en /api/save-workout:', error);
+        res.status(500).json({ error: 'Error al guardar rutina: ' + error.message });
+    }
+});
+
+// 15. GUARDAR PLAN DE DIETA (usado por Netlify Functions)
+app.post('/api/save-diet', async (req, res) => {
+    try {
+        const { userId, title, description, totalCaloriesPerDay, planData } = req.body || {};
+
+        if (!userId || !planData) {
+            return res.status(400).json({ error: 'Faltan parámetros: userId y planData son obligatorios' });
+        }
+
+        const id = require('crypto').randomUUID();
+        const sql = `INSERT INTO diet_plans (id, user_id, title, description, total_calories_per_day, plan_data) VALUES (?, ?, ?, ?, ?, ?)`;
+        const params = [
+            id,
+            userId,
+            title || 'Plan de Dieta',
+            description || null,
+            Number.isFinite(totalCaloriesPerDay) ? totalCaloriesPerDay : null,
+            JSON.stringify(planData)
+        ];
+
+        db.query(sql, params, (err) => {
+            if (err) {
+                console.error('❌ Error al guardar dieta en BD:', err);
+                return res.status(500).json({ error: 'Error al guardar en base de datos: ' + err.message });
+            }
+            console.log('✅ Dieta guardada con éxito:', id);
+            res.json({ success: true, planId: id });
+        });
+    } catch (error) {
+        console.error('❌ Error en /api/save-diet:', error);
+        res.status(500).json({ error: 'Error al guardar dieta: ' + error.message });
+    }
+});
+
 const server = app.listen(PORT, () => {
     console.log(`🚀 Servidor backend corriendo en http://localhost:${PORT}`);
 });

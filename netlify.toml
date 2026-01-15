@@ -9,5 +9,5 @@
   status = 200
 
 [functions]
-  external_node_modules = ["express", "pg", "cors", "@google/genai"]
+  external_node_modules = ["express", "pg", "cors", "@google/generative-ai"]
   node_bundler = "esbuild"
