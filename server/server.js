@@ -5,7 +5,7 @@ const { Pool } = require('pg');
 const cors = require('cors');
 const compression = require('compression');
 const PDFDocument = require('pdfkit');
-const { GoogleGenAI, Type } = require('@google/genai');
+const { GoogleGenerativeAI, SchemaType } = require('@google/generative-ai');
 require('dotenv').config();
 
 const app = express();
@@ -18,7 +18,7 @@ let ai = null;
 if (!apiKey) {
     console.warn('⚠️ GEMINI_API_KEY no está configurada. Las funciones de IA no estarán disponibles.');
 } else {
-    ai = new GoogleGenAI({ apiKey });
+    ai = new GoogleGenerativeAI(apiKey);
     console.log('✅ Gemini AI inicializado correctamente');
 }
 
@@ -685,7 +685,7 @@ app.post('/api/generate-workout', async (req, res) => {
         console.log(`🤖 Generando rutina para usuario ${userId}, tipo: ${workoutType}`);
 
         // Construir el prompt para Gemini
-        const prompt = `Eres un entrenador personal experto. Crea un plan de entrenamiento SEMANAL (7 días) tipo "${workoutType}" para:
+        const systemPrompt = `Eres un entrenador personal experto. Crea un plan de entrenamiento SEMANAL (7 días) tipo "${workoutType}" para:
         - Perfil: ${profile.age} años, ${profile.gender}, ${profile.weight}kg, ${profile.height}cm
         - Objetivo: ${profile.goal}
         - Nivel de actividad: ${profile.activityLevel}
@@ -699,25 +699,25 @@ app.post('/api/generate-workout', async (req, res) => {
 
         // Definir schema para la respuesta
         const workoutDaySchema = {
-            type: Type.OBJECT,
+            type: SchemaType.OBJECT,
             properties: {
-                dayName: { type: Type.STRING },
-                focus: { type: Type.STRING },
+                dayName: { type: SchemaType.STRING },
+                focus: { type: SchemaType.STRING },
                 exercises: {
-                    type: Type.ARRAY,
+                    type: SchemaType.ARRAY,
                     items: {
-                        type: Type.OBJECT,
+                        type: SchemaType.OBJECT,
                         properties: {
-                            name: { type: Type.STRING },
-                            sets: { type: Type.INTEGER },
-                            reps: { type: Type.STRING },
-                            rest: { type: Type.STRING },
-                            muscleGroup: { type: Type.STRING },
-                            category: { type: Type.STRING },
-                            tempo: { type: Type.STRING },
-                            description: { type: Type.STRING },
-                            tips: { type: Type.STRING },
-                            videoQuery: { type: Type.STRING }
+                            name: { type: SchemaType.STRING },
+                            sets: { type: SchemaType.INTEGER },
+                            reps: { type: SchemaType.STRING },
+                            rest: { type: SchemaType.STRING },
+                            muscleGroup: { type: SchemaType.STRING },
+                            category: { type: SchemaType.STRING },
+                            tempo: { type: SchemaType.STRING },
+                            description: { type: SchemaType.STRING },
+                            tips: { type: SchemaType.STRING },
+                            videoQuery: { type: SchemaType.STRING }
                         },
                         required: ["name", "sets", "reps", "rest", "muscleGroup", "description", "tips", "videoQuery", "category"]
                     }
@@ -727,20 +727,20 @@ app.post('/api/generate-workout', async (req, res) => {
         };
 
         const workoutPlanSchema = {
-            type: Type.OBJECT,
+            type: SchemaType.OBJECT,
             properties: {
-                title: { type: Type.STRING },
-                description: { type: Type.STRING },
-                frequency: { type: Type.STRING },
-                estimatedDuration: { type: Type.STRING },
-                difficulty: { type: Type.STRING },
-                durationWeeks: { type: Type.INTEGER },
+                title: { type: SchemaType.STRING },
+                description: { type: SchemaType.STRING },
+                frequency: { type: SchemaType.STRING },
+                estimatedDuration: { type: SchemaType.STRING },
+                difficulty: { type: SchemaType.STRING },
+                durationWeeks: { type: SchemaType.INTEGER },
                 recommendations: { 
-                    type: Type.ARRAY, 
-                    items: { type: Type.STRING }
+                    type: SchemaType.ARRAY, 
+                    items: { type: SchemaType.STRING }
                 },
                 schedule: {
-                    type: Type.ARRAY,
+                    type: SchemaType.ARRAY,
                     items: workoutDaySchema
                 }
             },
@@ -748,10 +748,10 @@ app.post('/api/generate-workout', async (req, res) => {
         };
 
         // Llamar a Gemini
-        const response = await ai.models.generateContent({
-            model: "gemini-2.0-flash-exp",
-            contents: prompt,
-            config: {
+        const model = ai.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+        const response = await model.generateContent({
+            contents: [{role: "user", parts: [{text: systemPrompt}]}],
+                generationConfig: {
                 responseMimeType: "application/json",
                 responseSchema: workoutPlanSchema,
                 temperature: 0.8
@@ -824,7 +824,7 @@ app.post('/api/generate-diet', async (req, res) => {
             : '';
 
         // Construir el prompt para Gemini
-        const prompt = `Eres un nutricionista deportivo experto. Crea un PLAN SEMANAL (7 DÍAS) de dieta tipo "${dietType}" para:
+        const systemPrompt = `Eres un nutricionista deportivo experto. Crea un PLAN SEMANAL (7 DÍAS) de dieta tipo "${dietType}" para:
         - Perfil: ${profile.age} años, ${profile.gender}, ${profile.weight}kg, ${profile.height}cm
         - Objetivo: ${profile.goal}
         - Nivel de actividad: ${profile.activityLevel}
@@ -839,32 +839,32 @@ app.post('/api/generate-diet', async (req, res) => {
 
         // Schema para la respuesta
         const mealSchema = {
-            type: Type.OBJECT,
+            type: SchemaType.OBJECT,
             properties: {
-                name: { type: Type.STRING },
-                description: { type: Type.STRING },
-                calories: { type: Type.INTEGER },
-                protein: { type: Type.INTEGER },
-                carbs: { type: Type.INTEGER },
-                fats: { type: Type.INTEGER },
+                name: { type: SchemaType.STRING },
+                description: { type: SchemaType.STRING },
+                calories: { type: SchemaType.INTEGER },
+                protein: { type: SchemaType.INTEGER },
+                carbs: { type: SchemaType.INTEGER },
+                fats: { type: SchemaType.INTEGER },
                 ingredients: { 
-                    type: Type.ARRAY, 
-                    items: { type: Type.STRING }
+                    type: SchemaType.ARRAY, 
+                    items: { type: SchemaType.STRING }
                 },
                 instructions: { 
-                    type: Type.ARRAY, 
-                    items: { type: Type.STRING }
+                    type: SchemaType.ARRAY, 
+                    items: { type: SchemaType.STRING }
                 }
             },
             required: ["name", "description", "calories", "protein", "carbs", "fats", "ingredients", "instructions"]
         };
 
         const dailyMealsSchema = {
-            type: Type.OBJECT,
+            type: SchemaType.OBJECT,
             properties: {
-                day: { type: Type.STRING },
+                day: { type: SchemaType.STRING },
                 meals: {
-                    type: Type.ARRAY,
+                    type: SchemaType.ARRAY,
                     items: mealSchema
                 }
             },
@@ -872,13 +872,13 @@ app.post('/api/generate-diet', async (req, res) => {
         };
 
         const dietPlanSchema = {
-            type: Type.OBJECT,
+            type: SchemaType.OBJECT,
             properties: {
-                title: { type: Type.STRING },
-                description: { type: Type.STRING },
-                totalCaloriesPerDay: { type: Type.INTEGER },
+                title: { type: SchemaType.STRING },
+                description: { type: SchemaType.STRING },
+                totalCaloriesPerDay: { type: SchemaType.INTEGER },
                 weeklyPlan: {
-                    type: Type.ARRAY,
+                    type: SchemaType.ARRAY,
                     items: dailyMealsSchema
                 }
             },
@@ -886,10 +886,10 @@ app.post('/api/generate-diet', async (req, res) => {
         };
 
         // Llamar a Gemini
-        const response = await ai.models.generateContent({
-            model: "gemini-2.0-flash-exp",
-            contents: prompt,
-            config: {
+        const model = ai.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+        const response = await model.generateContent({
+            contents: [{role: "user", parts: [{text: systemPrompt}]}],
+            generationConfig: {
                 responseMimeType: "application/json",
                 responseSchema: dietPlanSchema,
                 temperature: 0.6

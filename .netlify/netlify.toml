@@ -1,16 +1,15 @@
+functionsDirectory = "C:\\xampp\\htdocs\\fitgenius-ai\\netlify\\functions"
+functionsDirectoryOrigin = "config-v1"
 redirectsOrigin = "config"
 plugins = []
 headers = []
-
-[functions]
-
-[functions."*"]
 
 [build]
 publish = "C:\\xampp\\htdocs\\fitgenius-ai\\dist"
 publishOrigin = "config"
 commandOrigin = "config"
 command = "npm run build"
+functions = "C:\\xampp\\htdocs\\fitgenius-ai\\netlify\\functions"
 
 [build.environment]
 
@@ -25,6 +24,12 @@ command = "npm run build"
 [build.processing.js]
 
 [build.services]
+
+[functions]
+
+[functions."*"]
+node_bundler = "esbuild"
+external_node_modules = ["express", "pg", "cors", "@google/genai"]
 
 [[redirects]]
 from = "/*"

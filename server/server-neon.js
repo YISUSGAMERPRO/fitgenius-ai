@@ -5,8 +5,50 @@ const { Pool } = require('pg');
 const cors = require('cors');
 const compression = require('compression');
 const crypto = require('crypto');
-const { GoogleGenAI } = require('@google/genai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 require('dotenv').config();
+
+// Biblioteca rápida de ejercicios para rellenar volumen mínimo
+const fallbackExercises = [
+    { name: 'Sentadilla con barra', sets: 4, reps: '8-10', rest: '120s', muscleGroup: 'Piernas', category: 'compound', tempo: '2-0-1-0', description: 'Ejercicio base para fuerza y masa', tips: 'Espalda recta, rodillas alineadas', videoQuery: 'barbell back squat form' },
+    { name: 'Press banca', sets: 4, reps: '8-10', rest: '120s', muscleGroup: 'Pecho', category: 'compound', tempo: '2-0-1-0', description: 'Empuje horizontal principal', tips: 'Codos 45°, controla la bajada', videoQuery: 'bench press form' },
+    { name: 'Peso muerto rumano', sets: 3, reps: '10-12', rest: '120s', muscleGroup: 'Isquios/Glúteo', category: 'compound', tempo: '2-1-1-0', description: 'Bisagra de cadera dominante', tips: 'Barra pegada al cuerpo', videoQuery: 'romanian deadlift form' },
+    { name: 'Remo con barra', sets: 4, reps: '10-12', rest: '90s', muscleGroup: 'Espalda', category: 'compound', tempo: '2-0-1-1', description: 'Tracción horizontal', tips: 'Escápulas retraídas', videoQuery: 'barbell row form' },
+    { name: 'Press militar con mancuernas', sets: 3, reps: '10-12', rest: '90s', muscleGroup: 'Hombro', category: 'compound', tempo: '2-0-1-0', description: 'Empuje vertical', tips: 'No hiperextiendas lumbar', videoQuery: 'dumbbell shoulder press form' },
+    { name: 'Elevaciones laterales', sets: 3, reps: '12-15', rest: '75s', muscleGroup: 'Hombro lateral', category: 'isolation', tempo: '2-0-1-0', description: 'Aislamiento del deltoides medio', tips: 'Sin impulso, pausa arriba', videoQuery: 'lateral raise form' },
+    { name: 'Curl bíceps con mancuernas', sets: 3, reps: '10-12', rest: '75s', muscleGroup: 'Bíceps', category: 'isolation', tempo: '2-0-1-0', description: 'Flexión de codo', tips: 'Codos pegados al torso', videoQuery: 'dumbbell biceps curl form' },
+    { name: 'Extensión de tríceps en polea', sets: 3, reps: '12-15', rest: '75s', muscleGroup: 'Tríceps', category: 'isolation', tempo: '1-0-2-0', description: 'Extensión de codo', tips: 'Controla la fase excéntrica', videoQuery: 'triceps rope pushdown form' },
+    { name: 'Plancha', sets: 3, reps: '30-45s', rest: '60s', muscleGroup: 'Core', category: 'core', tempo: 'isometric', description: 'Estabilidad anti-extensión', tips: 'Cadera neutra, glúteo activo', videoQuery: 'plank form' }
+];
+
+function padExercisesToMinimum(day) {
+    const MIN = 6;
+    if (!day.exercises || day.exercises.length >= MIN) return day;
+    const needed = MIN - day.exercises.length;
+    const extras = fallbackExercises.slice(0, needed);
+    day.exercises = [...day.exercises, ...extras];
+    return day;
+}
+
+const fallbackMeals = [
+    { name: 'Desayuno', time: '07:00', items: ['Avena 60g', 'Leche 200ml', 'Banano 1'], calories: 350, protein: 18, carbs: 55, fats: 8 },
+    { name: 'Snack AM', time: '10:30', items: ['Yogur griego 150g', 'Almendras 25g'], calories: 220, protein: 16, carbs: 15, fats: 12 },
+    { name: 'Almuerzo', time: '13:30', items: ['Pechuga pollo 150g', 'Arroz integral 150g', 'Brócoli 100g'], calories: 600, protein: 48, carbs: 65, fats: 10 },
+    { name: 'Snack PM', time: '17:00', items: ['Manzana 1', 'Mantequilla maní 1 cda'], calories: 200, protein: 6, carbs: 28, fats: 8 },
+    { name: 'Cena', time: '20:00', items: ['Salmón 150g', 'Batata 150g', 'Espinacas 100g'], calories: 480, protein: 38, carbs: 42, fats: 14 }
+];
+
+function ensureSevenDaysSchedule(entries) {
+    const days = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+    const map = new Map((entries || []).map(d => [d.dayName || d.day, d]));
+    return days.map(d => map.get(d) || { dayName: d, focus: 'General', exercises: [] });
+}
+
+function ensureSevenDaysMeals(entries) {
+    const days = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+    const map = new Map((entries || []).map(d => [d.day || d.dayName, d]));
+    return days.map(d => map.get(d) || { day: d, meals: [...fallbackMeals] });
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -18,7 +60,7 @@ let ai = null;
 if (!apiKey) {
     console.warn('⚠️ GEMINI_API_KEY no está configurada. Las funciones de IA no estarán disponibles.');
 } else {
-    ai = new GoogleGenAI({ apiKey });
+    ai = new GoogleGenerativeAI(apiKey);
     console.log('✅ Gemini AI inicializado correctamente');
 }
 
@@ -92,6 +134,36 @@ pool.on('error', (err) => {
 pool.on('connect', () => {
     console.log('✅ Conexión a Neon establecida');
 });
+
+// Verificar existencia de usuario para evitar violaciones de FK
+async function ensureUserExists(userId) {
+    if (!userId) return { exists: false };
+    try {
+        const result = await pool.query('SELECT id FROM users WHERE id = $1 LIMIT 1', [userId]);
+        
+        if (result.rows.length > 0) {
+            return { exists: true };
+        }
+        
+        // Usuario no existe - crearlo automáticamente con datos dummy
+        console.log(`⚠️ Usuario ${userId} no existe en BD. Creándolo automáticamente...`);
+        
+        try {
+            await pool.query(
+                'INSERT INTO users (id, email, password, created_at) VALUES ($1::uuid, $2, $3, NOW())',
+                [userId, `user_${userId.substring(0, 8)}@fitgenius.app`, 'migrated_user']
+            );
+            console.log(`✅ Usuario ${userId} creado automáticamente`);
+            return { exists: true, created: true };
+        } catch (insertErr) {
+            console.error('❌ Error creando usuario automáticamente:', insertErr.message);
+            return { exists: false, error: insertErr.message };
+        }
+    } catch (e) {
+        console.error('⚠️ Error verificando usuario:', e.message);
+        return { exists: false };
+    }
+}
 
 // ========================================
 // INICIALIZAR TABLAS SI NO EXISTEN
@@ -286,6 +358,20 @@ app.get('/api/test-gemini', async (req, res) => {
     }
 });
 
+// DEBUG: Listar todos los usuarios (temporal)
+app.get('/api/debug/users', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT id, email, username, created_at FROM users ORDER BY created_at DESC LIMIT 20');
+        res.json({ 
+            count: result.rows.length,
+            users: result.rows 
+        });
+    } catch (err) {
+        console.error('Error listando usuarios:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Login (soporta esquemas con email o username)
 app.post('/api/login', async (req, res) => {
     try {
@@ -317,6 +403,8 @@ app.post('/api/register', async (req, res) => {
             return res.status(400).json({ error: 'Email y contraseña son requeridos' });
         }
         
+        console.log(`📝 Intento de registro: email=${email}, id=${id}`);
+        
         // Verificar si el usuario ya existe (email o username)
         const existingUser = await pool.query(
             'SELECT id FROM users WHERE email = $1 OR username = $1 LIMIT 1',
@@ -324,30 +412,35 @@ app.post('/api/register', async (req, res) => {
         );
         
         if (existingUser.rows.length > 0) {
+            console.log(`⚠️ Usuario ya existe con id: ${existingUser.rows[0].id}`);
             return res.status(409).json({ error: 'El email ya está registrado' });
         }
         
         // Crear nuevo usuario; si no existe la columna email, usar username
         const userId = id || crypto.randomUUID();
+        console.log(`✅ Creando usuario con id: ${userId}`);
+        
         try {
-            await pool.query(
-                'INSERT INTO users (id, email, password, created_at) VALUES ($1, $2, $3, NOW())',
+            const result = await pool.query(
+                'INSERT INTO users (id, email, password, created_at) VALUES ($1::uuid, $2, $3, NOW()) RETURNING id, email',
                 [userId, email, password]
             );
+            console.log(`✅ Usuario creado exitosamente:`, result.rows[0]);
+            res.json({ id: result.rows[0].id, email: result.rows[0].email, success: true });
         } catch (e) {
             // Si falla por falta de columna email, intentar con username (compatibilidad)
             if (e.code === '42703') {
-                await pool.query(
-                    'INSERT INTO users (id, username, password, created_at) VALUES ($1, $2, $3, NOW())',
+                const result = await pool.query(
+                    'INSERT INTO users (id, username, password, created_at) VALUES ($1::uuid, $2, $3, NOW()) RETURNING id, username',
                     [userId, email, password]
                 );
+                console.log(`✅ Usuario creado con username:`, result.rows[0]);
+                res.json({ id: result.rows[0].id, email: email, success: true });
             } else {
+                console.error('❌ Error en INSERT:', e.message, 'Code:', e.code);
                 throw e;
             }
         }
-        
-        console.log('✅ Usuario registrado:', { id: userId, email });
-        res.json({ id: userId, email, success: true });
     } catch (err) {
         console.error('❌ Error en registro:', err.message);
         res.status(500).json({ error: err.message });
@@ -474,6 +567,10 @@ app.post('/api/save-workout', async (req, res) => {
     try {
         const { userId, title, planData } = req.body;
         const id = Date.now().toString();
+        const userCheck = await ensureUserExists(userId);
+        if (!userCheck.exists) {
+            return res.status(400).json({ error: 'Usuario no encontrado. Regístrate o inicia sesión antes de guardar la rutina.' });
+        }
         
         await pool.query(
             `INSERT INTO workout_plans (id, user_id, title, plan_data, created_at) 
@@ -493,6 +590,10 @@ app.post('/api/save-diet', async (req, res) => {
     try {
         const { userId, title, planData } = req.body;
         const id = Date.now().toString();
+        const userCheck = await ensureUserExists(userId);
+        if (!userCheck.exists) {
+            return res.status(400).json({ error: 'Usuario no encontrado. Regístrate o inicia sesión antes de guardar la dieta.' });
+        }
         
         await pool.query(
             `INSERT INTO diet_plans (id, user_id, title, plan_data, created_at) 
@@ -507,7 +608,7 @@ app.post('/api/save-diet', async (req, res) => {
     }
 });
 
-// Obtener rutinas del usuario
+// Obtener rutinas del usuario (plural)
 app.get('/api/workouts/:userId', async (req, res) => {
     try {
         const result = await pool.query(
@@ -517,6 +618,23 @@ app.get('/api/workouts/:userId', async (req, res) => {
         res.json(result.rows);
     } catch (err) {
         console.error('Error obteniendo workouts:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Obtener última rutina del usuario (singular - compatibilidad con frontend)
+app.get('/api/workout/:userId', async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT * FROM workout_plans WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+            [req.params.userId]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'No se encontró rutina' });
+        }
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('Error obteniendo workout:', err.message);
         res.status(500).json({ error: err.message });
     }
 });
@@ -561,7 +679,7 @@ app.get('/api/admin/database-stats', async (req, res) => {
     }
 });
 
-// Obtener dietas del usuario
+// Obtener dietas del usuario (plural)
 app.get('/api/diets/:userId', async (req, res) => {
     try {
         const result = await pool.query(
@@ -569,6 +687,28 @@ app.get('/api/diets/:userId', async (req, res) => {
             [req.params.userId]
         );
         res.json(result.rows);
+    } catch (err) {
+        console.error('Error obteniendo diets:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Obtener última dieta del usuario (singular - compatibilidad con frontend)
+app.get('/api/diet/:userId', async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT * FROM diet_plans WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+            [req.params.userId]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'No se encontró dieta' });
+        }
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('Error obteniendo diet:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
     } catch (err) {
         console.error('Error obteniendo diets:', err.message);
         res.status(500).json({ error: err.message });
@@ -590,24 +730,91 @@ app.post('/api/generate-workout', async (req, res) => {
 
         console.log(`🤖 Generando rutina para usuario ${userId}, tipo: ${workoutType}`);
 
-        // Prompt MUY simple para probar
-        const prompt = `Responde SOLO con JSON válido (sin explicaciones):
-{"title":"Plan ${workoutType}","description":"Plan personalizado","frequency":"5 días","estimatedDuration":"60 min","difficulty":"intermedio","durationWeeks":4,"recommendations":["Descansa bien","Hidratate"],"schedule":[{"dayName":"Lunes","focus":"Pecho","exercises":[{"name":"Flexiones","sets":3,"reps":"10-12","rest":"60s","muscleGroup":"Pecho","category":"main","tempo":"2-0-1-0","description":"Básico","tips":"Respira","videoQuery":"flexiones"}]},{"dayName":"Martes","focus":"Espalda","exercises":[]},{"dayName":"Miércoles","focus":"Piernas","exercises":[]},{"dayName":"Jueves","focus":"Brazos","exercises":[]},{"dayName":"Viernes","focus":"Hombros","exercises":[]},{"dayName":"Sábado","focus":"Cardio","exercises":[]},{"dayName":"Domingo","focus":"Descanso","exercises":[]}]}`;
+        // Validar existencia del usuario para evitar violación de FK
+        const userCheck = await ensureUserExists(userId);
+        console.log(`🔍 Verificación de usuario ${userId}:`, userCheck);
+        
+        if (!userCheck.exists) {
+            console.error(`❌ Usuario ${userId} NO existe en la tabla users`);
+            return res.status(400).json({ error: 'Usuario no encontrado. Regístrate o inicia sesión antes de generar una rutina.' });
+        }
+        
+        console.log(`✅ Usuario ${userId} verificado, procediendo con generación...`);
+
+        // Desestructurar datos del perfil
+        const { age, gender, weight, height, goal, activityLevel, equipment, injuries } = profile;
+
+        // Construir prompt científicamente fundamentado
+        const prompt = `ERES UN ESPECIALISTA EN CIENCIAS DEL DEPORTE Y ENTRENAMIENTO. Crea un plan de entrenamiento PERSONALIZADO y DETALLADO basado en:
+
+PERFIL DEL USUARIO:
+- Edad: ${age} años
+- Género: ${gender}
+- Peso: ${weight}kg | Altura: ${height}cm
+- Objetivo: ${goal}
+- Nivel de actividad: ${activityLevel}
+- Equipo disponible: ${equipment ? (Array.isArray(equipment) ? equipment.join(', ') : equipment) : 'Ninguno'}
+- Lesiones/limitaciones: ${injuries || 'Ninguna'}
+- Tipo de rutina: ${workoutType}
+
+DIRECTRICES:
+1. Crea una rutina adaptada al objetivo (ganancia muscular: 4-6 series x 6-12 reps; pérdida grasa: 3-4 series x 8-15 reps; resistencia: 2-3 series x 12-20 reps)
+2. MÍNIMO 6-9 ejercicios por día de entrenamiento (no menos de 6)
+3. Varía series según el tipo: ejercicios compuestos 4-6 series, aislados 3-4 series
+4. Incluye compound lifts (sentadillas, press, deadlifts, rows)
+5. Estructura: calentamiento dinámico, ejercicios principales, accesorios, core
+6. Rest periods: 2-3 min compuestos, 60-90s aislados
+7. Progresión: aumenta peso/reps cada semana
+8. Adapta a lesiones si las hay
+
+FORMATO RESPUESTA (SOLO JSON):
+{
+  "title": "Nombre plan descriptivo",
+  "description": "Descripción científica del enfoque",
+  "frequency": "X días/semana",
+  "estimatedDuration": "X min por sesión",
+  "difficulty": "Principiante|Intermedio|Avanzado",
+  "durationWeeks": 8-12,
+  "progressionNotes": "Cómo progresar cada semana",
+  "recommendations": ["Consejo 1", "Consejo 2", "Consejo 3", "Consejo 4"],
+  "schedule": [
+    {
+      "dayName": "Nombre del día",
+      "focus": "Grupo muscular principal",
+      "warmup": {"exercises": [{"name": "Ejercicio", "sets": 2, "reps": "10-15", "rest": "30s", "intensity": "Baja"}]},
+      "exercises": [
+        {"name": "Ejercicio 1", "sets": 5, "reps": "5-6", "rest": "180s", "muscleGroup": "Pecho", "category": "compound", "tempo": "2-0-1-0", "description": "Movimiento principal", "tips": "Mantén el pecho arriba", "videoQuery": "bench press form"},
+        {"name": "Ejercicio 2", "sets": 4, "reps": "8-10", "rest": "120s", "muscleGroup": "Pecho", "category": "compound", "tempo": "2-0-2-0", "description": "Accesorio", "tips": "Control total", "videoQuery": "incline dumbbell press"},
+        {"name": "Ejercicio 3", "sets": 3, "reps": "10-12", "rest": "90s", "muscleGroup": "Tríceps", "category": "compound", "tempo": "2-0-1-0", "description": "Movimiento multi-articular", "tips": "Codos atrás", "videoQuery": "close grip bench press"},
+        {"name": "Ejercicio 4", "sets": 3, "reps": "10-12", "rest": "90s", "muscleGroup": "Pecho", "category": "isolation", "tempo": "2-1-1-0", "description": "Aislamiento", "tips": "Stretch máximo", "videoQuery": "cable fly"},
+        {"name": "Ejercicio 5", "sets": 3, "reps": "12-15", "rest": "75s", "muscleGroup": "Tríceps", "category": "isolation", "tempo": "1-0-2-0", "description": "Aislamiento", "tips": "Control negativo", "videoQuery": "tricep rope pushdown"},
+        {"name": "Ejercicio 6", "sets": 3, "reps": "12-15", "rest": "75s", "muscleGroup": "Hombro anterior", "category": "isolation", "tempo": "2-0-1-0", "description": "Aislamiento", "tips": "Sin momentum", "videoQuery": "lateral raise"},
+        {"name": "Ejercicio 7", "sets": 2, "reps": "15-20", "rest": "60s", "muscleGroup": "Pecho", "category": "burnout", "tempo": "1-0-1-0", "description": "Ejercicio de bombeo", "tips": "Alto volumen", "videoQuery": "push ups"}
+      ],
+      "cooldown": {"exercises": [{"name": "Core trabajo", "sets": 2, "reps": "8-12", "rest": "45s", "muscleGroup": "Core", "category": "core"}]}
+    }
+  ]
+}
+
+GENERA AHORA LA RUTINA COMPLETA EN JSON:`;
 
         console.log('📤 Llamando a Gemini...');
-        const response = await ai.models.generateContent({
-            model: "gemini-2.0-flash-exp",
-            contents: prompt
+        const model = ai.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+        const result = await model.generateContent({
+            contents: [{ role: "user", parts: [{ text: prompt }] }]
         });
 
-        if (!response.text) {
+        const response = result.response;
+        const responseText = response.text();
+
+        if (!responseText) {
             throw new Error('Gemini no devolvió respuesta');
         }
 
-        console.log('📥 Respuesta recibida, primeros 200 chars:', response.text.substring(0, 200));
+        console.log('📥 Respuesta recibida, primeros 200 chars:', responseText.substring(0, 200));
 
         // Extraer JSON - puede estar dentro de bloque markdown ```json...```
-        let jsonText = response.text;
+        let jsonText = responseText;
         
         // Si está dentro de bloque markdown, extraerlo
         const markdownMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -636,6 +843,15 @@ app.post('/api/generate-workout', async (req, res) => {
             console.error('❌ Error parseando JSON:', parseErr.message);
             console.error('JSON intentado:', jsonText.substring(0, 300));
             throw new Error(`Error parseando JSON: ${parseErr.message}`);
+        }
+
+        // Asegurar 7 días y volumen mínimo de ejercicios por día (6+) excepto descansos
+        if (workoutPlan) {
+            const schedule = ensureSevenDaysSchedule(workoutPlan.schedule || []);
+            workoutPlan.schedule = schedule.map(day => {
+                if (day.focus && day.focus.toLowerCase().includes('descanso')) return day;
+                return padExercisesToMinimum(day);
+            });
         }
 
         const planId = Date.now().toString();
@@ -671,24 +887,83 @@ app.post('/api/generate-diet', async (req, res) => {
 
         console.log(`🤖 Generando dieta para usuario ${userId}, tipo: ${dietType}`);
 
-        // Prompt MUY simple
-        const prompt = `Responde SOLO con JSON válido (sin explicaciones):
-{"title":"Plan ${dietType}","description":"Plan nutricional","weeklyCalories":2000,"macros":{"protein":30,"carbs":40,"fats":30},"mealPlan":[{"day":"Lunes","meals":[{"name":"Desayuno","time":"7:00","items":["Avena","Leche"],"calories":350,"macros":{"protein":10,"carbs":50,"fats":8}},{"name":"Almuerzo","time":"13:00","items":["Pollo","Arroz"],"calories":600,"macros":{"protein":40,"carbs":60,"fats":10}},{"name":"Cena","time":"19:00","items":["Pescado","Verduras"],"calories":400,"macros":{"protein":35,"carbs":30,"fats":12}}]},{"day":"Martes","meals":[]},{"day":"Miércoles","meals":[]},{"day":"Jueves","meals":[]},{"day":"Viernes","meals":[]},{"day":"Sábado","meals":[]},{"day":"Domingo","meals":[]}],"shoppingList":["Pollo","Arroz","Pescado","Verduras"],"tips":["Hidratate","Come despacio"]}`;
+        // Validar existencia del usuario para evitar violación de FK
+        const userCheck = await ensureUserExists(userId);
+        if (!userCheck.exists) {
+            return res.status(400).json({ error: 'Usuario no encontrado. Regístrate o inicia sesión antes de generar una dieta.' });
+        }
+
+        // Desestructurar datos del perfil
+        const { age, gender, weight, height, goal, activityLevel } = profile;
+        
+        // Calcular calorías estimadas
+        const bmr = gender === 'Femenino' 
+            ? 10 * weight + 6.25 * height - 5 * age - 161
+            : 10 * weight + 6.25 * height - 5 * age + 5;
+        
+        const activityMultipliers = {
+            'Sedentario': 1.2, 'Ligero': 1.375, 'Moderado': 1.55, 'Activo': 1.725, 'Muy activo': 1.9
+        };
+        
+        const tdee = Math.round(bmr * (activityMultipliers[activityLevel] || 1.55));
+        const calorieTarget = goal === 'Ganar masa' ? tdee + 300 : goal === 'Perder grasa' ? tdee - 400 : tdee;
+        const proteinG = Math.round(weight * 1.6);
+
+        // Prompt simplificado pero científico
+        const prompt = `Crea un plan de dieta DETALLADO de 7 días en JSON puro. Usuario: ${age} años, ${weight}kg, objetivo: ${goal}, ${dietType}.
+
+REQUISITOS:
+- Calorías diarias: ${calorieTarget}kcal
+- Proteína mínima: ${proteinG}g
+- 4-5 comidas por día
+- Alimentos reales con calorías exactas
+- Incluir macros por comida
+
+RESPONDE SOLO CON JSON (sin markdown, explicaciones ni comillas extras):
+{
+  "title": "Plan ${dietType}",
+  "description": "Plan nutricional personalizado",
+  "dailyCalories": ${calorieTarget},
+  "proteinTarget": ${proteinG},
+  "mealPlan": [
+    {
+      "day": "Lunes",
+      "meals": [
+        {"name": "Desayuno", "time": "7:00", "items": ["Huevos x3", "Pan x1", "Plátano x1"], "calories": 350, "protein": 18, "carbs": 40, "fats": 8},
+        {"name": "Snack", "time": "10:00", "items": ["Yogur x150g", "Almendras x30g"], "calories": 250, "protein": 15, "carbs": 20, "fats": 10},
+        {"name": "Almuerzo", "time": "13:00", "items": ["Pollo x150g", "Arroz x150g", "Brócoli x100g"], "calories": 650, "protein": 50, "carbs": 70, "fats": 8},
+        {"name": "Snack2", "time": "16:00", "items": ["Manzana x1", "Mantequilla maní x1"], "calories": 200, "protein": 8, "carbs": 25, "fats": 8},
+        {"name": "Cena", "time": "19:30", "items": ["Salmón x150g", "Batata x150g", "Espinacas x100g"], "calories": 500, "protein": 40, "carbs": 45, "fats": 14}
+      ]
+    },
+    {"day": "Martes", "meals": []},
+    {"day": "Miércoles", "meals": []},
+    {"day": "Jueves", "meals": []},
+    {"day": "Viernes", "meals": []},
+    {"day": "Sábado", "meals": []},
+    {"day": "Domingo", "meals": []}
+  ],
+  "tips": ["Bebe mucha agua", "Come cada 3 horas", "Duerme 8 horas", "Prepara comidas con anticipación"],
+  "shopping": ["Huevos", "Pollo", "Salmón", "Arroz", "Batata", "Verduras", "Yogur", "Almendras"]
+}`;
 
         console.log('📤 Llamando a Gemini...');
-        const response = await ai.models.generateContent({
-            model: "gemini-2.0-flash-exp",
-            contents: prompt
+        const model = ai.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+        const result = await model.generateContent({
+            contents: [{ role: "user", parts: [{ text: prompt }] }]
         });
 
-        if (!response.text) {
+        const response = result.response;
+        const responseText = response.text();
+
+        if (!responseText) {
             throw new Error('Gemini no devolvió respuesta');
         }
 
         console.log('📥 Respuesta recibida');
 
         // Extraer JSON - puede estar dentro de bloque markdown ```json...```
-        let jsonText = response.text;
+        let jsonText = responseText;
         
         // Si está dentro de bloque markdown, extraerlo
         const markdownMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -713,6 +988,14 @@ app.post('/api/generate-diet', async (req, res) => {
         } catch (parseErr) {
             console.error('❌ Error parseando JSON:', parseErr.message);
             throw new Error(`Error parseando JSON: ${parseErr.message}`);
+        }
+
+        // Normalizar estructura para el frontend: asegurar schedule (alias de mealPlan) y 7 días con comidas
+        if (dietPlan) {
+            if (!dietPlan.schedule && dietPlan.mealPlan) {
+                dietPlan.schedule = dietPlan.mealPlan;
+            }
+            dietPlan.schedule = ensureSevenDaysMeals(dietPlan.schedule || dietPlan.mealPlan || []);
         }
 
         const planId = Date.now().toString();

@@ -6,6 +6,18 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
+// Verificar existencia de usuario para evitar violaciones de FK
+async function ensureUserExists(userId) {
+    if (!userId) return { exists: false };
+    try {
+        const result = await pool.query('SELECT id FROM users WHERE id = $1 LIMIT 1', [userId]);
+        return { exists: result.rows.length > 0 };
+    } catch (e) {
+        console.error('⚠️ Error verificando usuario:', e.message);
+        return { exists: false };
+    }
+}
+
 // Función handler de Netlify Functions
 export const handler = async (event, context) => {
     // CORS headers
@@ -128,6 +140,16 @@ Formato: JSON con comidas, macros, recetas`;
             const { userId, title, planData } = body;
             const id = Date.now().toString();
             
+            // Verificar existencia del usuario para evitar violación de FK
+            const userCheck = await ensureUserExists(userId);
+            if (!userCheck.exists) {
+                return {
+                    statusCode: 400,
+                    headers,
+                    body: JSON.stringify({ error: 'Usuario no encontrado. Regístrate o inicia sesión antes de guardar la rutina.' })
+                };
+            }
+            
             await pool.query(
                 'INSERT INTO workout_plans (id, user_id, title, plan_data) VALUES ($1, $2, $3, $4)',
                 [id, userId, title, JSON.stringify(planData)]
@@ -144,6 +166,16 @@ Formato: JSON con comidas, macros, recetas`;
         if (path === '/save-diet' && method === 'POST') {
             const { userId, title, planData } = body;
             const id = Date.now().toString();
+            
+            // Verificar existencia del usuario para evitar violación de FK
+            const userCheck = await ensureUserExists(userId);
+            if (!userCheck.exists) {
+                return {
+                    statusCode: 400,
+                    headers,
+                    body: JSON.stringify({ error: 'Usuario no encontrado. Regístrata o inicia sesión antes de guardar la dieta.' })
+                };
+            }
             
             await pool.query(
                 'INSERT INTO diet_plans (id, user_id, title, plan_data) VALUES ($1, $2, $3, $4)',
