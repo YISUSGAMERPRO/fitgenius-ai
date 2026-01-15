@@ -30,7 +30,7 @@ const LoadingScreen: React.FC<Props> = ({ message }) => {
     }, []);
 
     return (
-        <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center p-6 animate-fadeIn">
+        <div className="fixed inset-0 z-[100] bg-[#0a0a0f] flex flex-col items-center justify-center p-6 animate-fadeIn">
             {/* Background Ambient Light */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-brand-500/10 rounded-full blur-[100px] pointer-events-none"></div>
 

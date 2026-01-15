@@ -511,7 +511,7 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
     // Loading Screen for Workout Generation
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-950">
+            <div className="min-h-screen flex items-center justify-center bg-[#0a0a0f]">
                 <div className="glass-card p-12 rounded-3xl text-center max-w-md border border-white/5 animate-fadeIn">
                     <div className="mb-6 flex justify-center">
                         <div className="relative w-20 h-20">

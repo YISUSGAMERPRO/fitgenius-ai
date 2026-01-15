@@ -124,7 +124,7 @@ function App() {
   if (isEditing && user) return <ProfileSetup onComplete={(p) => { handleProfileComplete(p); setIsEditing(false); }} initialData={user} onCancel={() => setIsEditing(false)} />;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-950">
+    <div className="flex h-screen overflow-hidden bg-[#0a0a0f]">
       <aside className="w-72 hidden md:flex flex-col border-r border-white/5 bg-slate-900/40">
         <div className="p-8 pb-4 flex items-center gap-3 cursor-pointer" onClick={() => setPortal('landing')}>
           <div className="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center shadow-lg"><Activity className="text-white" /></div>
