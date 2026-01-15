@@ -39,6 +39,7 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
     const STORAGE_KEY_PLAN = `fitgenius_workout_${userId}`;
     const STORAGE_KEY_HISTORY = `fitgenius_history_${userId}`;
     const STORAGE_KEY_SESSION = `fitgenius_session_${userId}`;
+    const STORAGE_KEY_COMPLETED_DAYS = `fitgenius_completed_days_${userId}`;
 
     // State
     const [plan, setPlan] = useState<WorkoutPlan | null>(null);
@@ -56,6 +57,8 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
     const [sessionSeconds, setSessionSeconds] = useState(0);
     const [isSessionPaused, setIsSessionPaused] = useState(false);
     const [completedSets, setCompletedSets] = useState<Record<string, boolean>>({}); // Key: "exerciseIdx-setIdx"
+    const [completedDays, setCompletedDays] = useState<Record<string, boolean>>({}); // Key: "planId-dayIndex"
+    const [showCelebration, setShowCelebration] = useState(false);
     
     // UI State
     const [regeneratingExerciseId, setRegeneratingExerciseId] = useState<string | null>(null);
@@ -84,6 +87,16 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
             }
         } else {
             setShowGenerator(true);
+        }
+        
+        // Load completed days
+        const savedCompletedDays = localStorage.getItem(STORAGE_KEY_COMPLETED_DAYS);
+        if (savedCompletedDays) {
+            try {
+                setCompletedDays(JSON.parse(savedCompletedDays));
+            } catch (e) {
+                console.error("Error parsing completed days", e);
+            }
         }
 
         // Check for active session recovery
@@ -439,12 +452,22 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
             history.push(log);
             localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(history));
 
+            // Mark day as completed
+            const dayKey = `${plan.id}-${selectedDayIndex}`;
+            const updatedCompletedDays = { ...completedDays, [dayKey]: true };
+            setCompletedDays(updatedCompletedDays);
+            localStorage.setItem(STORAGE_KEY_COMPLETED_DAYS, JSON.stringify(updatedCompletedDays));
+
             // Clear Session
             localStorage.removeItem(STORAGE_KEY_SESSION);
             setIsSessionActive(false);
             setSessionSeconds(0);
             setCompletedSets({});
             setShowFinishModal(false);
+            
+            // Show celebration animation
+            setShowCelebration(true);
+            setTimeout(() => setShowCelebration(false), 3000);
             
         } catch (error) {
             console.error("Error saving workout:", error);
@@ -590,6 +613,9 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
 
     return (
         <div className="space-y-6 animate-slideUp pb-20 md:pb-0">
+             
+             {/* Celebration Animation */}
+             <CelebrationOverlay show={showCelebration} />
              
              {/* Confirmation Modal */}
              <ConfirmModal 
@@ -751,20 +777,30 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
 
              {/* Days Navigation - Scrollbar Enabled */}
              <div className="flex overflow-x-auto pb-4 gap-3">
-                 {(plan?.schedule || []).map((day, idx) => (
-                     <button
-                        key={idx}
-                        onClick={() => setSelectedDayIndex(idx)}
-                        className={`flex-shrink-0 px-5 py-3 rounded-xl border transition-all whitespace-nowrap ${
-                            selectedDayIndex === idx 
-                                ? 'bg-brand-600 text-white border-brand-500 shadow-lg shadow-brand-500/20' 
-                                : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-750'
-                        }`}
-                     >
-                         <span className="block text-xs font-bold uppercase opacity-70">Día {idx + 1}</span>
-                         <span className="font-bold">{day.dayName}</span>
-                     </button>
-                 ))}
+                 {(plan?.schedule || []).map((day, idx) => {
+                     const dayKey = `${plan.id}-${idx}`;
+                     const isCompleted = completedDays[dayKey];
+                     
+                     return (
+                         <button
+                            key={idx}
+                            onClick={() => setSelectedDayIndex(idx)}
+                            className={`flex-shrink-0 px-5 py-3 rounded-xl border transition-all whitespace-nowrap relative ${
+                                selectedDayIndex === idx 
+                                    ? 'bg-brand-600 text-white border-brand-500 shadow-lg shadow-brand-500/20' 
+                                    : isCompleted
+                                    ? 'bg-green-900/30 text-green-400 border-green-500/50 hover:bg-green-900/40'
+                                    : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-750'
+                            }`}
+                         >
+                             {isCompleted && (
+                                 <CheckCircle2 className="w-4 h-4 absolute top-1 right-1 text-green-400" />
+                             )}
+                             <span className="block text-xs font-bold uppercase opacity-70">Día {idx + 1}</span>
+                             <span className="font-bold">{day.dayName}</span>
+                         </button>
+                     );
+                 })}
              </div>
 
              {/* Active Session Header Sticky */}
@@ -1020,6 +1056,34 @@ const ExerciseCard: React.FC<{
                     {expanded ? 'Menos Detalles' : 'Ver Instrucciones'} {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                 </button>
             </div>
+        </div>
+    );
+};
+
+// Celebration Animation Component
+const CelebrationOverlay: React.FC<{ show: boolean }> = ({ show }) => {
+    if (!show) return null;
+    
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+            <div className="absolute inset-0 bg-black/60 animate-fadeIn"></div>
+            <div className="relative z-10 animate-bounce">
+                <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-full p-8 shadow-2xl">
+                    <Trophy className="w-24 h-24 text-white" />
+                </div>
+            </div>
+            <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center animate-slideUp">
+                    <h2 className="text-5xl font-black text-white mb-2 drop-shadow-lg">¡COMPLETADO!</h2>
+                    <p className="text-2xl text-green-400 font-bold">Día de entrenamiento finalizado</p>
+                </div>
+            </div>
+            {/* Confetti Effect */}
+            <div className="absolute top-1/4 left-1/4 w-4 h-4 bg-yellow-400 rounded-full animate-ping"></div>
+            <div className="absolute top-1/3 right-1/4 w-3 h-3 bg-pink-400 rounded-full animate-ping" style={{ animationDelay: '0.2s' }}></div>
+            <div className="absolute bottom-1/3 left-1/3 w-5 h-5 bg-blue-400 rounded-full animate-ping" style={{ animationDelay: '0.4s' }}></div>
+            <div className="absolute top-1/2 right-1/3 w-4 h-4 bg-green-400 rounded-full animate-ping" style={{ animationDelay: '0.1s' }}></div>
+            <div className="absolute bottom-1/4 right-1/4 w-3 h-3 bg-purple-400 rounded-full animate-ping" style={{ animationDelay: '0.3s' }}></div>
         </div>
     );
 };

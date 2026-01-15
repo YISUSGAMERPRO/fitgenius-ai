@@ -256,6 +256,14 @@ Schoenfeld (2017): Hipertrofia 10-20 sets/grupo/semana, 6-15 reps. Fuerza 3-8 se
 5. Progresión científica (RPE/RIR)
 6. Periodización de 4 semanas
 7. Adaptado al IMC ${imcData.value}
+8. **CRÍTICO: GENERAR 3-6 DÍAS COMPLETOS EN EL ARRAY "schedule"** según el tipo de entrenamiento
+
+## ESTRUCTURA DE DÍAS:
+- Full Body: 3 días (Día A, Día B, Día C)
+- Push/Pull/Legs: 3 días (Push, Pull, Legs) o 6 días (PPL-PPL)
+- Torso/Pierna: 4 días (Torso A, Pierna A, Torso B, Pierna B)
+- Upper/Lower: 4 días (Upper A, Lower A, Upper B, Lower B)
+- Weider: 5-6 días (Pecho, Espalda, Piernas, Hombros, Brazos, [Abs])
 
 ## JSON REQUERIDO (SOLO JSON, SIN TEXTO):
 {
@@ -301,7 +309,26 @@ Schoenfeld (2017): Hipertrofia 10-20 sets/grupo/semana, 6-15 reps. Fuerza 3-8 se
           ]
         }
       ]
+    },
+    {
+      "weekCycle": 1,
+      "dayName": "Día 2 - NOMBRE ESPECÍFICO",
+      "dayDescription": "Descripción del enfoque",
+      "focus": "Grupos musculares",
+      "exercisesCount": ${config.exercisesPerDay},
+      "estimatedTime": "60-75 min",
+      "exercises": [...]
+    },
+    {
+      "weekCycle": 1,
+      "dayName": "Día 3 - NOMBRE ESPECÍFICO",
+      "dayDescription": "Descripción del enfoque",
+      "focus": "Grupos musculares",
+      "exercisesCount": ${config.exercisesPerDay},
+      "estimatedTime": "60-75 min",
+      "exercises": [...]
     }
+    // CONTINUAR SEGÚN EL TIPO DE ENTRENAMIENTO (mínimo 3, máximo 6 días)
   ],
   "medicalAnalysis": {
     "severity": "None|Low|Medium|High",
@@ -318,7 +345,8 @@ Schoenfeld (2017): Hipertrofia 10-20 sets/grupo/semana, 6-15 reps. Fuerza 3-8 se
 RESTRICCIONES:
 - NO solo 5 ejercicios de 3 series (MÍNIMO ${config.exercisesPerDay})
 - VARIAR series y reps
-- CADA alternativa viable`;
+- CADA alternativa viable
+- **GENERAR MÍNIMO 3 DÍAS COMPLETOS, MÁXIMO 6 DÍAS** en el array schedule`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
