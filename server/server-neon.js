@@ -1188,6 +1188,135 @@ IMPORTANTE: Cada comida DEBE tener ingredients (array de strings) e instructions
     }
 });
 
+// ===== INTERCAMBIAR EJERCICIO =====
+app.post('/api/swap-exercise', async (req, res) => {
+    if (!ai) {
+        return res.status(503).json({ error: 'Servicio de IA no disponible' });
+    }
+
+    try {
+        const { currentExercise, muscleGroup, availableEquipment, exercisesToAvoid, userProfile } = req.body;
+        
+        console.log(`🔄 Intercambiando ejercicio: ${currentExercise} (${muscleGroup})`);
+        
+        const equipmentStr = availableEquipment?.length > 0 
+            ? availableEquipment.join(', ') 
+            : 'Gimnasio completo';
+        
+        const avoidStr = exercisesToAvoid?.length > 0 
+            ? `NO uses estos ejercicios: ${exercisesToAvoid.join(', ')}` 
+            : '';
+
+        const prompt = `Genera UN ejercicio alternativo para reemplazar "${currentExercise}" que trabaje el mismo grupo muscular (${muscleGroup}).
+
+Equipamiento disponible: ${equipmentStr}
+${avoidStr}
+
+RESPONDE SOLO CON JSON (sin markdown):
+{
+  "name": "Nombre del ejercicio alternativo",
+  "sets": 4,
+  "reps": "8-12",
+  "rest": "90s",
+  "muscleGroup": "${muscleGroup}",
+  "category": "compound o isolation",
+  "tempo": "2-0-1-0",
+  "description": "Descripción breve del movimiento",
+  "tips": "Consejo de técnica",
+  "videoQuery": "nombre ejercicio form tutorial"
+}`;
+
+        const model = ai.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+        const result = await model.generateContent({
+            contents: [{ role: "user", parts: [{ text: prompt }] }]
+        });
+
+        const responseText = result.response.text();
+        const newExercise = cleanAndParseJSON(responseText);
+
+        console.log('✅ Ejercicio alternativo:', newExercise.name);
+        res.json({ newExercise });
+    } catch (err) {
+        console.error('❌ Error swap-exercise:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ===== INTERCAMBIAR PLATILLO =====
+app.post('/api/swap-meal', async (req, res) => {
+    if (!ai) {
+        return res.status(503).json({ error: 'Servicio de IA no disponible' });
+    }
+
+    try {
+        const { currentMeal, mealType, dietType, targetMacros, preferences, mealsToAvoid, userProfile } = req.body;
+        
+        console.log(`🔄 Intercambiando platillo: ${currentMeal?.name} (${mealType})`);
+        
+        const prefsStr = preferences?.length > 0 
+            ? `Preferencias: ${preferences.join(', ')}` 
+            : '';
+        
+        const avoidStr = mealsToAvoid?.length > 0 
+            ? `NO uses estos platillos: ${mealsToAvoid.slice(0, 10).join(', ')}` 
+            : '';
+        
+        const macrosStr = targetMacros 
+            ? `Macros objetivo: ~${targetMacros.calories}kcal, ${targetMacros.protein}g proteína, ${targetMacros.carbs}g carbos, ${targetMacros.fats}g grasas`
+            : '';
+
+        const prompt = `Genera UN platillo alternativo para reemplazar "${currentMeal?.name || mealType}" para ${mealType}.
+
+Tipo de dieta: ${dietType}
+${macrosStr}
+${prefsStr}
+${avoidStr}
+
+RESPONDE SOLO CON JSON (sin markdown):
+{
+  "name": "Nombre del platillo",
+  "type": "${mealType}",
+  "time": "${currentMeal?.time || '12:00'}",
+  "description": "Descripción apetitosa del platillo",
+  "calories": 450,
+  "protein": 30,
+  "carbs": 40,
+  "fats": 15,
+  "prepTime": "20 min",
+  "ingredients": ["Ingrediente 1 con cantidad", "Ingrediente 2 con cantidad", "Ingrediente 3 con cantidad"],
+  "instructions": ["Paso 1 de preparación", "Paso 2 de preparación", "Paso 3 de preparación"]
+}`;
+
+        const model = ai.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+        const result = await model.generateContent({
+            contents: [{ role: "user", parts: [{ text: prompt }] }]
+        });
+
+        const responseText = result.response.text();
+        let newMeal = cleanAndParseJSON(responseText);
+        
+        // Asegurar que tiene todos los campos necesarios
+        newMeal = {
+            ...newMeal,
+            name: newMeal.name || 'Platillo alternativo',
+            type: newMeal.type || mealType,
+            calories: newMeal.calories || targetMacros?.calories || 400,
+            protein: newMeal.protein || targetMacros?.protein || 25,
+            carbs: newMeal.carbs || targetMacros?.carbs || 40,
+            fats: newMeal.fats || targetMacros?.fats || 15,
+            ingredients: newMeal.ingredients || ['Ingrediente 1', 'Ingrediente 2'],
+            instructions: newMeal.instructions || ['Preparar ingredientes', 'Cocinar', 'Servir'],
+            prepTime: newMeal.prepTime || '15 min'
+        };
+
+        console.log('✅ Platillo alternativo:', newMeal.name);
+        res.json({ newMeal });
+    } catch (err) {
+        console.error('❌ Error swap-meal:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Manejo de errores no capturados
 process.on('uncaughtException', (err) => {
     console.error('❌ Excepción no capturada:', err);
