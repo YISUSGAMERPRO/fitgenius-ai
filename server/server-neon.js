@@ -138,11 +138,23 @@ pool.on('connect', () => {
 // Verificar existencia de usuario para evitar violaciones de FK
 async function ensureUserExists(userId) {
     if (!userId) return { exists: false };
+    
+    // Verificar si userId es un UUID válido
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const isValidUUID = uuidRegex.test(userId);
+    
+    if (!isValidUUID) {
+        console.log(`⚠️ userId "${userId}" no es un UUID válido. Generando uno nuevo...`);
+        // Generar un UUID válido basado en el userId original
+        userId = crypto.randomUUID();
+        console.log(`✅ Nuevo UUID generado: ${userId}`);
+    }
+    
     try {
         const result = await pool.query('SELECT id FROM users WHERE id = $1 LIMIT 1', [userId]);
         
         if (result.rows.length > 0) {
-            return { exists: true };
+            return { exists: true, id: userId };
         }
         
         // Usuario no existe - crearlo automáticamente con datos dummy
@@ -151,10 +163,10 @@ async function ensureUserExists(userId) {
         try {
             await pool.query(
                 'INSERT INTO users (id, email, password, created_at) VALUES ($1::uuid, $2, $3, NOW())',
-                [userId, `user_${userId.substring(0, 8)}@fitgenius.app`, 'migrated_user']
+                [userId, `user_${userId.substring(0, 8)}@fitgenius.app`, 'auto_created']
             );
             console.log(`✅ Usuario ${userId} creado automáticamente`);
-            return { exists: true, created: true };
+            return { exists: true, created: true, id: userId };
         } catch (insertErr) {
             console.error('❌ Error creando usuario automáticamente:', insertErr.message);
             return { exists: false, error: insertErr.message };
@@ -717,7 +729,7 @@ app.post('/api/generate-workout', async (req, res) => {
     }
 
     try {
-        const { userId, profile, workoutType } = req.body;
+        let { userId, profile, workoutType } = req.body;
         
         if (!userId || !profile || !workoutType) {
             return res.status(400).json({ error: 'Faltan parámetros requeridos: userId, profile, workoutType' });
@@ -727,13 +739,15 @@ app.post('/api/generate-workout', async (req, res) => {
 
         // Validar existencia del usuario para evitar violación de FK
         const userCheck = await ensureUserExists(userId);
-        console.log(`🔍 Verificación de usuario ${userId}:`, userCheck);
+        console.log(`🔍 Verificación de usuario:`, userCheck);
         
         if (!userCheck.exists) {
-            console.error(`❌ Usuario ${userId} NO existe en la tabla users`);
+            console.error(`❌ Usuario NO pudo ser verificado/creado`);
             return res.status(400).json({ error: 'Usuario no encontrado. Regístrate o inicia sesión antes de generar una rutina.' });
         }
         
+        // Usar el ID validado/generado
+        userId = userCheck.id || userId;
         console.log(`✅ Usuario ${userId} verificado, procediendo con generación...`);
 
         // Desestructurar datos del perfil
@@ -874,7 +888,7 @@ app.post('/api/generate-diet', async (req, res) => {
     }
 
     try {
-        const { userId, profile, dietType } = req.body;
+        let { userId, profile, dietType } = req.body;
         
         if (!userId || !profile || !dietType) {
             return res.status(400).json({ error: 'Faltan parámetros requeridos: userId, profile, dietType' });
@@ -887,6 +901,9 @@ app.post('/api/generate-diet', async (req, res) => {
         if (!userCheck.exists) {
             return res.status(400).json({ error: 'Usuario no encontrado. Regístrate o inicia sesión antes de generar una dieta.' });
         }
+        
+        // Usar el ID validado/generado
+        userId = userCheck.id || userId;
 
         // Desestructurar datos del perfil
         const { age, gender, weight, height, goal, activityLevel } = profile;
