@@ -23,9 +23,28 @@ const fallbackExercises = [
 
 function padExercisesToMinimum(day) {
     const MIN = 6;
-    if (!day.exercises || day.exercises.length >= MIN) return day;
+    // Si el día no tiene exercises o es un array vacío, crear uno nuevo
+    if (!day.exercises) {
+        day.exercises = [];
+    }
+    
+    // Solo aplicar padding si hay menos del mínimo
+    if (day.exercises.length >= MIN) return day;
+    
     const needed = MIN - day.exercises.length;
-    const extras = fallbackExercises.slice(0, needed);
+    console.log(`📋 Padding day "${day.dayName || day.day}": adding ${needed} exercises (current: ${day.exercises.length})`);
+    
+    // Seleccionar ejercicios que no estén ya en el día
+    const existingNames = new Set(day.exercises.map(e => e.name.toLowerCase()));
+    const available = fallbackExercises.filter(e => !existingNames.has(e.name.toLowerCase()));
+    const extras = available.slice(0, needed);
+    
+    // Si no hay suficientes únicos, usar todos los disponibles
+    if (extras.length < needed) {
+        const remaining = needed - extras.length;
+        extras.push(...fallbackExercises.slice(0, remaining));
+    }
+    
     day.exercises = [...day.exercises, ...extras];
     return day;
 }
@@ -40,14 +59,68 @@ const fallbackMeals = [
 
 function ensureSevenDaysSchedule(entries, restDays = []) {
     const days = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
-    const map = new Map((entries || []).map(d => [d.dayName || d.day, d]));
+    
+    // Si no hay entries o está vacío, devolver días según restDays
+    if (!entries || entries.length === 0) {
+        console.log('⚠️ No hay schedule entries, creando estructura vacía');
+        return days.map(d => {
+            if (restDays.includes(d)) {
+                return { dayName: d, focus: 'Descanso', exercises: [], isRestDay: true };
+            }
+            return { dayName: d, focus: 'General', exercises: [] };
+        });
+    }
+    
+    console.log(`📅 Processing ${entries.length} days from AI response`);
+    
+    // Crear mapa con múltiples claves posibles para cada día
+    const map = new Map();
+    entries.forEach((d, idx) => {
+        const dayKey = d.dayName || d.day || `Día ${idx + 1}`;
+        map.set(dayKey, d);
+        
+        // También guardar por nombre de día estándar si coincide parcialmente
+        days.forEach(standardDay => {
+            if (dayKey.toLowerCase().includes(standardDay.toLowerCase())) {
+                map.set(standardDay, d);
+            }
+        });
+    });
+    
+    // Si hay menos de 7 entries, asignar los existentes a días en orden
+    if (entries.length > 0 && entries.length < 7 && map.size < 7) {
+        let entryIdx = 0;
+        return days.map((d, idx) => {
+            // Si es día de descanso
+            if (restDays.includes(d)) {
+                return { dayName: d, focus: 'Descanso', exercises: [], isRestDay: true };
+            }
+            
+            // Si ya existe en el mapa
+            const existing = map.get(d);
+            if (existing) {
+                return { ...existing, dayName: d };
+            }
+            
+            // Si hay entries disponibles, usar el siguiente
+            if (entryIdx < entries.length) {
+                const entry = entries[entryIdx];
+                entryIdx++;
+                return { ...entry, dayName: d };
+            }
+            
+            // Si no hay más entries y no es descanso, marcar como General vacío
+            return { dayName: d, focus: 'General', exercises: [] };
+        });
+    }
+    
     return days.map(d => {
         const existing = map.get(d);
-        if (existing) return existing;
+        if (existing) return { ...existing, dayName: d };
         
         // Si es día de descanso, crear entrada sin ejercicios
         if (restDays.includes(d)) {
-            return { dayName: d, focus: 'Descanso', exercises: [] };
+            return { dayName: d, focus: 'Descanso', exercises: [], isRestDay: true };
         }
         
         // Si no existe y no es descanso, crear con estructura básica
@@ -903,6 +976,14 @@ GENERA AHORA LA RUTINA COMPLETA EN JSON:`;
             throw parseErr;
         }
 
+        // Log del plan parseado
+        console.log('📊 Plan parseado - schedule length:', workoutPlan?.schedule?.length || 0);
+        if (workoutPlan?.schedule) {
+            workoutPlan.schedule.forEach((d, i) => {
+                console.log(`  📅 Día ${i}: ${d.dayName || d.day} - ${d.exercises?.length || 0} ejercicios`);
+            });
+        }
+
         // Asegurar 7 días y volumen mínimo de ejercicios por día (6+) excepto descansos
         if (workoutPlan) {
             const schedule = ensureSevenDaysSchedule(workoutPlan.schedule || [], restDays);
@@ -920,6 +1001,12 @@ GENERA AHORA LA RUTINA COMPLETA EN JSON:`;
                     };
                 }
                 return padExercisesToMinimum(day);
+            });
+            
+            // Log final
+            console.log('📊 Schedule final después de procesamiento:');
+            workoutPlan.schedule.forEach((d, i) => {
+                console.log(`  ✅ ${d.dayName}: ${d.focus} - ${d.exercises?.length || 0} ejercicios`);
             });
         }
 
