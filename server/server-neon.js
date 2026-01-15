@@ -131,7 +131,33 @@ function ensureSevenDaysSchedule(entries, restDays = []) {
 function ensureSevenDaysMeals(entries) {
     const days = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
     const map = new Map((entries || []).map(d => [d.day || d.dayName, d]));
-    return days.map(d => map.get(d) || { day: d, meals: [...fallbackMeals] });
+    
+    return days.map(d => {
+        const existing = map.get(d);
+        if (existing && existing.meals && existing.meals.length > 0) {
+            // Asegurar que cada comida tenga ingredients e instructions
+            existing.meals = existing.meals.map(meal => ({
+                ...meal,
+                name: meal.name || 'Comida',
+                description: meal.description || `${meal.name || 'Comida'} nutritiva`,
+                calories: meal.calories || 400,
+                protein: meal.protein || 25,
+                carbs: meal.carbs || 40,
+                fats: meal.fats || 15,
+                ingredients: meal.ingredients || meal.items || ['Ingrediente 1', 'Ingrediente 2', 'Ingrediente 3'],
+                instructions: meal.instructions || ['Preparar ingredientes', 'Cocinar según preferencia', 'Servir y disfrutar'],
+                prepTime: meal.prepTime || '15 min'
+            }));
+            return { ...existing, day: d };
+        }
+        return { day: d, meals: [...fallbackMeals].map(m => ({
+            ...m,
+            description: `${m.name} nutritivo y balanceado`,
+            ingredients: m.items || ['Ingrediente 1', 'Ingrediente 2'],
+            instructions: ['Preparar ingredientes', 'Cocinar según preferencia', 'Servir'],
+            prepTime: '15 min'
+        })) };
+    });
 }
 
 // Función para limpiar y reparar JSON malformado de Gemini
@@ -1074,37 +1100,43 @@ app.post('/api/generate-diet', async (req, res) => {
 REQUISITOS:
 - Calorías diarias: ${calorieTarget}kcal
 - Proteína mínima: ${proteinG}g
-- 4-5 comidas por día
+- 5 comidas por día (Desayuno, Snack AM, Almuerzo, Snack PM, Cena)
 - Alimentos reales con calorías exactas
-- Incluir macros por comida
+- OBLIGATORIO: Incluir ingredients (lista de ingredientes con cantidades) e instructions (pasos de preparación) para CADA comida
 
 RESPONDE SOLO CON JSON (sin markdown, explicaciones ni comillas extras):
 {
   "title": "Plan ${dietType}",
-  "description": "Plan nutricional personalizado",
+  "description": "Plan nutricional personalizado de 7 días",
   "dailyCalories": ${calorieTarget},
   "proteinTarget": ${proteinG},
+  "dailyTargets": {"calories": ${calorieTarget}, "protein": ${proteinG}, "carbs": ${Math.round(calorieTarget * 0.45 / 4)}, "fats": ${Math.round(calorieTarget * 0.25 / 9)}},
   "mealPlan": [
     {
       "day": "Lunes",
       "meals": [
-        {"name": "Desayuno", "time": "7:00", "items": ["Huevos x3", "Pan x1", "Plátano x1"], "calories": 350, "protein": 18, "carbs": 40, "fats": 8},
-        {"name": "Snack", "time": "10:00", "items": ["Yogur x150g", "Almendras x30g"], "calories": 250, "protein": 15, "carbs": 20, "fats": 10},
-        {"name": "Almuerzo", "time": "13:00", "items": ["Pollo x150g", "Arroz x150g", "Brócoli x100g"], "calories": 650, "protein": 50, "carbs": 70, "fats": 8},
-        {"name": "Snack2", "time": "16:00", "items": ["Manzana x1", "Mantequilla maní x1"], "calories": 200, "protein": 8, "carbs": 25, "fats": 8},
-        {"name": "Cena", "time": "19:30", "items": ["Salmón x150g", "Batata x150g", "Espinacas x100g"], "calories": 500, "protein": 40, "carbs": 45, "fats": 14}
+        {
+          "name": "Desayuno",
+          "type": "Desayuno",
+          "time": "7:00",
+          "description": "Descripción breve del platillo",
+          "calories": 450,
+          "protein": 25,
+          "carbs": 45,
+          "fats": 15,
+          "prepTime": "15 min",
+          "ingredients": ["3 huevos enteros", "2 rebanadas pan integral", "1 plátano mediano", "1 cucharada aceite oliva"],
+          "instructions": ["Calentar sartén con aceite", "Batir huevos y cocinar revolviendo", "Tostar el pan", "Servir con plátano cortado"]
+        }
       ]
-    },
-    {"day": "Martes", "meals": []},
-    {"day": "Miércoles", "meals": []},
-    {"day": "Jueves", "meals": []},
-    {"day": "Viernes", "meals": []},
-    {"day": "Sábado", "meals": []},
-    {"day": "Domingo", "meals": []}
+    }
   ],
-  "tips": ["Bebe mucha agua", "Come cada 3 horas", "Duerme 8 horas", "Prepara comidas con anticipación"],
-  "shopping": ["Huevos", "Pollo", "Salmón", "Arroz", "Batata", "Verduras", "Yogur", "Almendras"]
-}`;
+  "hydrationRecommendation": "Bebe 2-3 litros de agua al día",
+  "scientificBasis": ["Base científica 1", "Base científica 2"],
+  "tips": ["Consejo 1", "Consejo 2"]
+}
+
+IMPORTANTE: Cada comida DEBE tener ingredients (array de strings) e instructions (array de strings con pasos). Genera los 7 días COMPLETOS con 5 comidas cada uno.`;
 
         console.log('📤 Llamando a Gemini...');
         const model = ai.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
