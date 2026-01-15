@@ -599,7 +599,7 @@ const CalendarView: React.FC<Props> = ({ userId, onNavigate }) => {
                 </div>
                 <div className="flex-1 overflow-y-auto p-0">
                     <div className="divide-y divide-slate-800">
-                        {viewWorkoutModal.exercises.map((ex, idx) => (
+                        {(viewWorkoutModal.exercises || []).map((ex, idx) => (
                             <div key={idx} className="p-4 hover:bg-slate-800/30">
                                 <div className="flex justify-between items-start mb-2">
                                     <div className="flex items-center gap-2">
@@ -679,7 +679,7 @@ const CalendarView: React.FC<Props> = ({ userId, onNavigate }) => {
                              <List className="w-4 h-4 text-green-400" /> Ingredientes
                          </h4>
                          <ul className="space-y-2">
-                             {viewMealModal.ingredients.map((ing, i) => (
+                             {(viewMealModal.ingredients || []).map((ing, i) => (
                                  <li key={i} className="flex items-start gap-3 text-sm text-slate-200 bg-slate-800/50 p-2 rounded-lg border border-slate-800">
                                      <div className="mt-1 w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0"></div>
                                      {ing}
@@ -820,7 +820,7 @@ const CalendarView: React.FC<Props> = ({ userId, onNavigate }) => {
                               
                               {/* New Vertical Meal List */}
                               <div className="space-y-2 mb-6 flex-1 overflow-y-auto max-h-[300px] pr-1 custom-scrollbar">
-                                  {todayDiet.meals.map((meal, i) => {
+                                  {(todayDiet.meals || []).map((meal, i) => {
                                       const isDone = completedMeals[`${todayDayIndex}-${i}`];
                                       return (
                                           <div 
@@ -1411,7 +1411,7 @@ const CalendarView: React.FC<Props> = ({ userId, onNavigate }) => {
                                  </div>
                              </div>
 
-                             {plannedDietDay.meals.map((meal: any, idx: number) => {
+                             {(plannedDietDay.meals || []).map((meal: any, idx: number) => {
                                  const isChecked = completedMeals[`${selectedDayIndex}-${idx}`];
                                  return (
                                  <div 

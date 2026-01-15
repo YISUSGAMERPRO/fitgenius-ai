@@ -276,7 +276,7 @@ const DietView: React.FC<Props> = ({ user, userId }) => {
         const originalMeal = currentDay.meals[mealIndex];
         
         // Obtener todos los platillos del plan para evitar repeticiones
-        const mealsToAvoid = diet.schedule.flatMap(day => day.meals.map(m => m.name));
+        const mealsToAvoid = (diet.schedule || []).flatMap(day => (day.meals || []).map(m => m.name));
         
         // Calcular macros objetivo basados en el platillo actual
         const targetMacros = {
@@ -1122,7 +1122,7 @@ const MealCard: React.FC<{ meal: Meal, onSwap: () => void, isRegenerating: boole
                                 <List className="w-4 h-4 text-green-400" /> Ingredientes
                             </h4>
                             <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
-                                {meal.ingredients.map((ing, i) => (
+                                {(meal.ingredients || []).map((ing, i) => (
                                     <li key={i} className="flex items-start gap-2 text-sm text-slate-300 group/ing">
                                         <div className="mt-0.5 text-green-500/50 group-hover/ing:text-green-400 transition-colors">
                                             <CheckCircle2 className="w-3.5 h-3.5" />
