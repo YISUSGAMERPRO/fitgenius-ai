@@ -38,10 +38,21 @@ const fallbackMeals = [
     { name: 'Cena', time: '20:00', items: ['Salmón 150g', 'Batata 150g', 'Espinacas 100g'], calories: 480, protein: 38, carbs: 42, fats: 14 }
 ];
 
-function ensureSevenDaysSchedule(entries) {
+function ensureSevenDaysSchedule(entries, restDays = []) {
     const days = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
     const map = new Map((entries || []).map(d => [d.dayName || d.day, d]));
-    return days.map(d => map.get(d) || { dayName: d, focus: 'General', exercises: [] });
+    return days.map(d => {
+        const existing = map.get(d);
+        if (existing) return existing;
+        
+        // Si es día de descanso, crear entrada sin ejercicios
+        if (restDays.includes(d)) {
+            return { dayName: d, focus: 'Descanso', exercises: [] };
+        }
+        
+        // Si no existe y no es descanso, crear con estructura básica
+        return { dayName: d, focus: 'General', exercises: [] };
+    });
 }
 
 function ensureSevenDaysMeals(entries) {
@@ -793,8 +804,17 @@ app.post('/api/generate-workout', async (req, res) => {
         userId = userCheck.id || userId;
         console.log(`✅ Usuario ${userId} verificado, procediendo con generación...`);
 
-        // Desestructurar datos del perfil
+        // Desestructurar datos del perfil y opciones
         const { age, gender, weight, height, goal, activityLevel, equipment, injuries } = profile;
+        const { frequency, selectedDays, focus, duration } = req.body;
+        
+        // Determinar días de entrenamiento y descanso
+        const allDays = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+        const trainingDays = selectedDays && selectedDays.length > 0 ? selectedDays : ['Lunes', 'Miércoles', 'Viernes'];
+        const restDays = allDays.filter(d => !trainingDays.includes(d));
+        
+        console.log(`📅 Días de entrenamiento: ${trainingDays.join(', ')}`);
+        console.log(`😴 Días de descanso: ${restDays.join(', ')}`);
 
         // Construir prompt científicamente fundamentado
         const prompt = `ERES UN ESPECIALISTA EN CIENCIAS DEL DEPORTE Y ENTRENAMIENTO. Crea un plan de entrenamiento PERSONALIZADO y DETALLADO basado en:
@@ -808,6 +828,15 @@ PERFIL DEL USUARIO:
 - Equipo disponible: ${equipment ? (Array.isArray(equipment) ? equipment.join(', ') : equipment) : 'Ninguno'}
 - Lesiones/limitaciones: ${injuries || 'Ninguna'}
 - Tipo de rutina: ${workoutType}
+${focus ? `- Enfoque muscular especial: ${focus}` : ''}
+
+DÍAS DE LA SEMANA:
+- DÍAS DE ENTRENAMIENTO (crear rutina con ejercicios): ${trainingDays.join(', ')}
+- DÍAS DE DESCANSO (sin ejercicios, solo recuperación): ${restDays.join(', ')}
+
+IMPORTANTE: 
+- Los días de DESCANSO deben tener "focus": "Descanso" y "exercises": [] (array vacío)
+- Solo los días de ENTRENAMIENTO tienen ejercicios
 
 DIRECTRICES:
 1. Crea una rutina adaptada al objetivo (ganancia muscular: 4-6 series x 6-12 reps; pérdida grasa: 3-4 series x 8-15 reps; resistencia: 2-3 series x 12-20 reps)
@@ -876,9 +905,20 @@ GENERA AHORA LA RUTINA COMPLETA EN JSON:`;
 
         // Asegurar 7 días y volumen mínimo de ejercicios por día (6+) excepto descansos
         if (workoutPlan) {
-            const schedule = ensureSevenDaysSchedule(workoutPlan.schedule || []);
+            const schedule = ensureSevenDaysSchedule(workoutPlan.schedule || [], restDays);
             workoutPlan.schedule = schedule.map(day => {
-                if (day.focus && day.focus.toLowerCase().includes('descanso')) return day;
+                // Si es día de descanso, no agregar ejercicios
+                const isRestDay = day.focus && day.focus.toLowerCase().includes('descanso');
+                const isDayInRestList = restDays.includes(day.dayName || day.day);
+                
+                if (isRestDay || isDayInRestList) {
+                    return { 
+                        dayName: day.dayName || day.day, 
+                        focus: 'Descanso', 
+                        exercises: [],
+                        isRestDay: true
+                    };
+                }
                 return padExercisesToMinimum(day);
             });
         }
