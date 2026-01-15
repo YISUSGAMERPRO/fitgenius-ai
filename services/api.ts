@@ -193,9 +193,9 @@ export const api = {
         }
     ): Promise<any> => {
         try {
-            console.log('📤 Enviando solicitud de generación de rutina a Netlify Function...');
-            // Usar Netlify Function en lugar del servidor
-            const res = await fetch('/.netlify/functions/generate-workout', {
+            console.log('📤 Enviando solicitud de generación de rutina al servidor...');
+            // Usar el servidor backend (Railway/localhost)
+            const res = await fetch(`${API_BASE_URL}/generate-workout`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
@@ -226,10 +226,10 @@ export const api = {
 
     generateDiet: async (userId: string, profile: UserProfile, dietType: string, preferences?: string[], budget?: any): Promise<any> => {
         try {
-            console.log('📤 Enviando solicitud de generación de dieta a Netlify Function...');
+            console.log('📤 Enviando solicitud de generación de dieta al servidor...');
             console.log('Datos enviados:', { userId, profile, dietType, preferences, budget });
-            // Usar Netlify Function en lugar del servidor
-            const res = await fetch('/.netlify/functions/generate-diet', {
+            // Usar el servidor backend (Railway/localhost)
+            const res = await fetch(`${API_BASE_URL}/generate-diet`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId, profile, dietType, preferences, budget })
@@ -253,7 +253,7 @@ export const api = {
     getWorkout: async (userId: string): Promise<any> => {
         return getCachedOrFetch(`workout_${userId}`, async () => {
             try {
-                const res = await fetch(`${API_BASE_URL}/workouts/${userId}`);
+                const res = await fetch(`${API_BASE_URL}/workout/${userId}`);
                 if (!res.ok) {
                     if (res.status === 404) return null;
                     throw new Error('Error al obtener rutina');
@@ -270,7 +270,7 @@ export const api = {
     getDiet: async (userId: string): Promise<any> => {
         return getCachedOrFetch(`diet_${userId}`, async () => {
             try {
-                const res = await fetch(`${API_BASE_URL}/diets/${userId}`);
+                const res = await fetch(`${API_BASE_URL}/diet/${userId}`);
                 if (!res.ok) {
                     if (res.status === 404) return null;
                     throw new Error('Error al obtener dieta');
@@ -294,7 +294,7 @@ export const api = {
     ): Promise<any> => {
         try {
             console.log('🔄 Solicitando alternativa para:', currentExercise);
-            const res = await fetch('/.netlify/functions/swap-exercise', {
+            const res = await fetch(`${API_BASE_URL}/swap-exercise`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
@@ -333,7 +333,7 @@ export const api = {
     ): Promise<any> => {
         try {
             console.log('🔄 Solicitando alternativa para platillo:', currentMeal.name);
-            const res = await fetch('/.netlify/functions/swap-meal', {
+            const res = await fetch(`${API_BASE_URL}/swap-meal`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
@@ -371,7 +371,7 @@ export const api = {
     ): Promise<string> => {
         try {
             console.log('🩺 Consultando al Dr. FitGenius...');
-            const res = await fetch('/.netlify/functions/medical-assistant', {
+            const res = await fetch(`${API_BASE_URL}/medical-assistant`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 

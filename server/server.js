@@ -281,6 +281,16 @@ function createTablesIfNotExist() {
                 created_at TIMESTAMP DEFAULT NOW(),
                 updated_at TIMESTAMP DEFAULT NOW(),
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )`,
+            `CREATE TABLE IF NOT EXISTS user_sessions (
+                id SERIAL PRIMARY KEY,
+                user_id VARCHAR(36) NOT NULL,
+                login_time TIMESTAMP DEFAULT NOW(),
+                ip_address VARCHAR(45),
+                user_agent TEXT,
+                session_duration_minutes INT,
+                logout_time TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )`
         ];
         tablesPg.forEach((sql, i) => {
@@ -363,6 +373,18 @@ function createTablesIfNotExist() {
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
                 INDEX idx_user_diet (user_id),
                 INDEX idx_created_diet (created_at)
+            )`,
+            `CREATE TABLE IF NOT EXISTS user_sessions (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id VARCHAR(36) NOT NULL,
+                login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                ip_address VARCHAR(45),
+                user_agent TEXT,
+                session_duration_minutes INT,
+                logout_time TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                INDEX idx_user_session (user_id),
+                INDEX idx_login_time (login_time)
             )`
         ];
         tables.forEach((tableSQL, index) => {
@@ -396,10 +418,27 @@ app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     const sql = 'SELECT id, username, created_at FROM users WHERE username = ? AND password = ?';
     
+    // Obtener IP y User-Agent para el registro de sesión
+    const ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.ip;
+    const userAgent = req.headers['user-agent'] || 'Unknown';
+    
     db.query(sql, [username, password], (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
         if (results.length > 0) {
-            res.json(results[0]);
+            const user = results[0];
+            
+            // Registrar la sesión en user_sessions
+            const sessionSql = 'INSERT INTO user_sessions (user_id, ip_address, user_agent) VALUES (?, ?, ?)';
+            db.query(sessionSql, [user.id, ipAddress, userAgent], (sessionErr) => {
+                if (sessionErr) {
+                    console.error('⚠️ Error registrando sesión:', sessionErr.message);
+                    // No bloquear el login si falla el registro de sesión
+                } else {
+                    console.log(`✅ Sesión registrada para usuario: ${user.username}`);
+                }
+            });
+            
+            res.json(user);
         } else {
             res.status(401).json({ message: 'Credenciales inválidas' });
         }
@@ -983,6 +1022,188 @@ app.get('/api/diet/:userId', cacheControl, (req, res) => {
         } else {
             res.status(404).json({ message: 'No se encontró dieta' });
         }
+    });
+});
+
+// 12. HEALTH CHECK
+app.get('/api/health', (req, res) => {
+    res.json({ 
+        status: 'ok', 
+        timestamp: new Date().toISOString(),
+        database: pgPool ? 'PostgreSQL' : 'MySQL',
+        ai: ai ? 'Gemini AI disponible' : 'IA no configurada'
+    });
+});
+
+// 13. INTERCAMBIO DE EJERCICIOS
+app.post('/api/swap-exercise', async (req, res) => {
+    try {
+        const { currentExercise, muscleGroup, availableEquipment, exercisesToAvoid, userProfile } = req.body;
+        
+        if (!ai) {
+            return res.status(503).json({ error: 'Servicio de IA no disponible' });
+        }
+
+        console.log('🔄 Intercambiando ejercicio:', currentExercise);
+
+        const prompt = `Eres un entrenador personal experto. Sugiere UN ejercicio alternativo para reemplazar "${currentExercise}".
+
+Grupo muscular objetivo: ${muscleGroup}
+Equipamiento disponible: ${availableEquipment?.join(', ') || 'Sin restricciones'}
+Ejercicios a evitar: ${exercisesToAvoid?.join(', ') || 'Ninguno'}
+${userProfile?.injuries ? `Lesiones del usuario: ${userProfile.injuries}` : ''}
+
+Responde SOLO con un objeto JSON válido (sin markdown, sin texto adicional):
+{
+    "name": "Nombre del ejercicio",
+    "sets": 3,
+    "reps": "10-12",
+    "rest": "60s",
+    "description": "Breve descripción de la técnica",
+    "muscleGroup": "${muscleGroup}"
+}`;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: prompt
+        });
+
+        let responseText = response.text.trim();
+        // Limpiar markdown si existe
+        if (responseText.startsWith('```')) {
+            responseText = responseText.replace(/```json?\n?/g, '').replace(/```\n?/g, '');
+        }
+
+        const newExercise = JSON.parse(responseText);
+        console.log('✅ Ejercicio alternativo generado:', newExercise.name);
+        
+        res.json({ newExercise });
+    } catch (error) {
+        console.error('❌ Error intercambiando ejercicio:', error);
+        res.status(500).json({ error: 'Error al obtener alternativa: ' + error.message });
+    }
+});
+
+// 14. INTERCAMBIO DE PLATILLOS
+app.post('/api/swap-meal', async (req, res) => {
+    try {
+        const { currentMeal, mealType, dietType, targetMacros, preferences, mealsToAvoid, userProfile } = req.body;
+        
+        if (!ai) {
+            return res.status(503).json({ error: 'Servicio de IA no disponible' });
+        }
+
+        console.log('🔄 Intercambiando platillo:', currentMeal?.name);
+
+        const prompt = `Eres un nutricionista experto. Sugiere UN platillo alternativo para reemplazar "${currentMeal?.name || 'el platillo actual'}".
+
+Tipo de comida: ${mealType}
+Tipo de dieta: ${dietType}
+${targetMacros ? `Macros objetivo: ~${targetMacros.calories} kcal, ${targetMacros.protein}g proteína, ${targetMacros.carbs}g carbohidratos, ${targetMacros.fats}g grasas` : ''}
+Preferencias: ${preferences?.join(', ') || 'Sin preferencias específicas'}
+Platillos a evitar: ${mealsToAvoid?.join(', ') || 'Ninguno'}
+${userProfile?.goal ? `Objetivo del usuario: ${userProfile.goal}` : ''}
+
+Responde SOLO con un objeto JSON válido (sin markdown, sin texto adicional):
+{
+    "name": "Nombre del platillo",
+    "ingredients": ["ingrediente1", "ingrediente2"],
+    "instructions": "Instrucciones breves de preparación",
+    "macros": {
+        "calories": 400,
+        "protein": 30,
+        "carbs": 40,
+        "fats": 15
+    },
+    "prepTime": "15 min"
+}`;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: prompt
+        });
+
+        let responseText = response.text.trim();
+        if (responseText.startsWith('```')) {
+            responseText = responseText.replace(/```json?\n?/g, '').replace(/```\n?/g, '');
+        }
+
+        const newMeal = JSON.parse(responseText);
+        console.log('✅ Platillo alternativo generado:', newMeal.name);
+        
+        res.json({ newMeal });
+    } catch (error) {
+        console.error('❌ Error intercambiando platillo:', error);
+        res.status(500).json({ error: 'Error al obtener alternativa: ' + error.message });
+    }
+});
+
+// 15. ASISTENTE MÉDICO (Dr. FitGenius)
+app.post('/api/medical-assistant', async (req, res) => {
+    try {
+        const { messages, userProfile, workout, diet } = req.body;
+        
+        if (!ai) {
+            return res.status(503).json({ error: 'Servicio de IA no disponible' });
+        }
+
+        console.log('🩺 Consulta al Dr. FitGenius...');
+
+        const userContext = userProfile ? `
+Datos del paciente:
+- Edad: ${userProfile.age} años
+- Peso: ${userProfile.weight} kg
+- Altura: ${userProfile.height} cm
+- Género: ${userProfile.gender}
+- Objetivo: ${userProfile.goal}
+- Nivel de actividad: ${userProfile.activityLevel}
+${userProfile.injuries ? `- Lesiones/Condiciones: ${userProfile.injuries}` : ''}
+` : '';
+
+        const conversationHistory = messages?.map(m => `${m.role === 'user' ? 'Paciente' : 'Dr. FitGenius'}: ${m.text}`).join('\n') || '';
+
+        const prompt = `Eres el Dr. FitGenius, un asistente virtual de salud y fitness con conocimientos médicos generales. 
+
+IMPORTANTE:
+- Proporciona consejos generales de salud y fitness
+- Siempre recomienda consultar con un profesional médico para diagnósticos o tratamientos
+- Sé empático, claro y profesional
+- Usa emojis ocasionalmente para ser más amigable
+- Responde en español
+
+${userContext}
+
+${workout ? 'El paciente tiene una rutina de ejercicios activa.' : ''}
+${diet ? 'El paciente tiene un plan de dieta activo.' : ''}
+
+Conversación previa:
+${conversationHistory}
+
+Responde como Dr. FitGenius de manera concisa y útil (máximo 200 palabras).`;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: prompt
+        });
+
+        const responseText = response.text.trim();
+        console.log('✅ Dr. FitGenius respondió');
+        
+        res.json({ response: responseText });
+    } catch (error) {
+        console.error('❌ Error en asistente médico:', error);
+        res.status(500).json({ error: 'Error en consulta: ' + error.message });
+    }
+});
+
+// 16. OBTENER HISTORIAL DE SESIONES DE UN USUARIO
+app.get('/api/sessions/:userId', cacheControl, (req, res) => {
+    const { userId } = req.params;
+    const sql = 'SELECT * FROM user_sessions WHERE user_id = ? ORDER BY login_time DESC LIMIT 50';
+    
+    db.query(sql, [userId], (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(results);
     });
 });
 

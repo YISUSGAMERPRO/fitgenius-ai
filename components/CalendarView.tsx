@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, CheckCircle2, Trophy, Calendar as CalendarIc
 import { WorkoutLog, WorkoutPlan, DietPlan, ViewState, Exercise, Meal, WorkoutDay, UserProfile, calculateIMC, getIMCCategory } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as ReTooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { ConfirmModal } from './ConfirmModal';
+import { api } from '../services/api';
 
 interface Props {
   userId: string;
@@ -54,13 +55,8 @@ const CalendarView: React.FC<Props> = ({ userId, onNavigate }) => {
 
   useEffect(() => {
     loadHistory();
-    // Load active plans
-    const savedWorkout = localStorage.getItem(STORAGE_KEY_WORKOUT);
-    if (savedWorkout) setActiveWorkout(JSON.parse(savedWorkout));
+    loadActivePlans();
     
-    const savedDiet = localStorage.getItem(STORAGE_KEY_DIET);
-    if (savedDiet) setActiveDiet(JSON.parse(savedDiet));
-
     const savedCompleted = localStorage.getItem(STORAGE_KEY_COMPLETED);
     if (savedCompleted) {
         try { setCompletedMeals(JSON.parse(savedCompleted)); } catch(e) {}
@@ -75,6 +71,43 @@ const CalendarView: React.FC<Props> = ({ userId, onNavigate }) => {
     // Select today by default
     setSelectedDate(new Date().toDateString());
   }, [userId]);
+
+  // Función para cargar planes activos (localStorage primero, API como fallback)
+  const loadActivePlans = async () => {
+    // Intentar cargar workout de localStorage primero
+    const savedWorkout = localStorage.getItem(STORAGE_KEY_WORKOUT);
+    if (savedWorkout) {
+      setActiveWorkout(JSON.parse(savedWorkout));
+    } else {
+      // Si no hay en localStorage, intentar cargar de la API
+      try {
+        const workoutFromDb = await api.getWorkout(userId);
+        if (workoutFromDb) {
+          setActiveWorkout(workoutFromDb);
+          localStorage.setItem(STORAGE_KEY_WORKOUT, JSON.stringify(workoutFromDb));
+        }
+      } catch (e) {
+        console.log('No se pudo cargar rutina de la BD:', e);
+      }
+    }
+    
+    // Intentar cargar dieta de localStorage primero
+    const savedDiet = localStorage.getItem(STORAGE_KEY_DIET);
+    if (savedDiet) {
+      setActiveDiet(JSON.parse(savedDiet));
+    } else {
+      // Si no hay en localStorage, intentar cargar de la API
+      try {
+        const dietFromDb = await api.getDiet(userId);
+        if (dietFromDb) {
+          setActiveDiet(dietFromDb);
+          localStorage.setItem(STORAGE_KEY_DIET, JSON.stringify(dietFromDb));
+        }
+      } catch (e) {
+        console.log('No se pudo cargar dieta de la BD:', e);
+      }
+    }
+  };
 
   useEffect(() => {
       localStorage.setItem(STORAGE_KEY_COMPLETED, JSON.stringify(completedMeals));
