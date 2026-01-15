@@ -389,4 +389,6 @@ RESTRICCIONES:
   }
 };
 
+export { handler };};
+
 export { handler };
