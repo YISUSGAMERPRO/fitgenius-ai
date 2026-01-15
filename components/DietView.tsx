@@ -871,8 +871,8 @@ const DietView: React.FC<Props> = ({ user, userId }) => {
                                         <table className="w-full border-collapse border border-gray-400 mb-4">
                                             <thead>
                                                 <tr className="bg-gray-200">
-                                                    <th className="border border-gray-400 p-2 text-left font-bold">{meal.name}</th>
-                                                    <th className="border border-gray-400 p-2 text-right font-bold">Calorías: {meal.calories}</th>
+                                                    <th className="border border-gray-400 p-2 text-left font-bold">{meal.name || 'Comida'}</th>
+                                                    <th className="border border-gray-400 p-2 text-right font-bold">Calorías: {meal.calories || 0}</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -942,11 +942,11 @@ const DietView: React.FC<Props> = ({ user, userId }) => {
                                             day.meals?.map((meal, mealIdx) => (
                                                 <tr key={`${dayIdx}-${mealIdx}`}>
                                                     <td className="border border-gray-400 p-2">{day.day}</td>
-                                                    <td className="border border-gray-400 p-2">{meal.name}</td>
-                                                    <td className="border border-gray-400 p-2 text-right">{meal.calories}</td>
-                                                    <td className="border border-gray-400 p-2 text-right">{meal.protein}g</td>
-                                                    <td className="border border-gray-400 p-2 text-right">{meal.carbs}g</td>
-                                                    <td className="border border-gray-400 p-2 text-right">{meal.fats}g</td>
+                                                    <td className="border border-gray-400 p-2">{meal.name || 'Comida'}</td>
+                                                    <td className="border border-gray-400 p-2 text-right">{meal.calories || 0}</td>
+                                                    <td className="border border-gray-400 p-2 text-right">{meal.protein || 0}g</td>
+                                                    <td className="border border-gray-400 p-2 text-right">{meal.carbs || 0}g</td>
+                                                    <td className="border border-gray-400 p-2 text-right">{meal.fats || 0}g</td>
                                                 </tr>
                                             ))
                                         )}
@@ -1075,10 +1075,10 @@ const MealCard: React.FC<{ meal: Meal, onSwap: () => void, isRegenerating: boole
                                 )}
                             </div>
                             <div className={`flex flex-wrap gap-3 mt-2 text-sm font-medium ${isCompleted ? 'opacity-50 grayscale' : ''}`}>
-                                <span className="text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">{meal.calories} kcal</span>
-                                <span className="text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">P: {meal.protein}g</span>
-                                <span className="text-green-400 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20">C: {meal.carbs}g</span>
-                                <span className="text-yellow-400 bg-yellow-500/10 px-2 py-0.5 rounded border border-yellow-500/20">G: {meal.fats}g</span>
+                                <span className="text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">{meal.calories || 0} kcal</span>
+                                <span className="text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">P: {meal.protein || 0}g</span>
+                                <span className="text-green-400 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20">C: {meal.carbs || 0}g</span>
+                                <span className="text-yellow-400 bg-yellow-500/10 px-2 py-0.5 rounded border border-yellow-500/20">G: {meal.fats || 0}g</span>
                                 {meal.prepTime && (
                                     <span className="text-slate-400 bg-slate-800 px-2 py-0.5 rounded text-xs">⏱️ {meal.prepTime}</span>
                                 )}
