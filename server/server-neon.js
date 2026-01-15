@@ -709,11 +709,6 @@ app.get('/api/diet/:userId', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
-    } catch (err) {
-        console.error('Error obteniendo diets:', err.message);
-        res.status(500).json({ error: err.message });
-    }
-});
 
 // Generar rutina con IA
 app.post('/api/generate-workout', async (req, res) => {
