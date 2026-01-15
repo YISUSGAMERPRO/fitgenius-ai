@@ -13,37 +13,37 @@ function calculateIMC(weight: number, heightCm: number): { value: number; catego
     return { 
       value: imc, 
       category: 'Bajo peso', 
-      dietRecommendations: 'Aumentar superávit calórico. Incluir más carbohidratos complejos y proteínas. Comidas más frecuentes (6-7 al día). Añadir snacks calóricos saludables (frutos secos, aguacate, aceite de oliva).' 
+      dietRecommendations: 'Aumentar superávit calórico. Incluir más carbohidratos complejos y proteínas. Comidas más frecuentes (6-7 al día). Añadir snacks calóricos saludables.' 
     };
   } else if (imc < 25) {
     return { 
       value: imc, 
       category: 'Peso normal', 
-      dietRecommendations: 'Mantener balance calórico según objetivo. Distribución equilibrada de macronutrientes. Plan flexible según preferencias.' 
+      dietRecommendations: 'Mantener balance calórico según objetivo. Distribución equilibrada de macronutrientes.' 
     };
   } else if (imc < 30) {
     return { 
       value: imc, 
       category: 'Sobrepeso', 
-      dietRecommendations: 'Déficit calórico moderado (15-20%). Aumentar proteínas para preservar músculo. Reducir carbohidratos refinados. Priorizar vegetales y fibra para saciedad. Control de porciones.' 
+      dietRecommendations: 'Déficit calórico moderado (15-20%). Aumentar proteínas para preservar músculo. Reducir carbohidratos refinados. Priorizar vegetales y fibra.' 
     };
   } else if (imc < 35) {
     return { 
       value: imc, 
       category: 'Obesidad Grado I', 
-      dietRecommendations: 'Déficit calórico estructurado (20-25%). Alta proteína (2g/kg peso ideal). Eliminar azúcares añadidos y ultraprocesados. Plan de comidas estricto con horarios definidos. Considerar ayuno intermitente suave.' 
+      dietRecommendations: 'Déficit calórico estructurado (20-25%). Alta proteína (2g/kg ideal). Eliminar azúcares y ultraprocesados. Plan de comidas estricto con horarios definidos.' 
     };
   } else {
     return { 
       value: imc, 
       category: 'Obesidad Grado II-III', 
-      dietRecommendations: 'IMPORTANTE: Plan supervisado por profesional médico. Déficit calórico controlado. Eliminar completamente ultraprocesados, azúcares y frituras. Comidas pequeñas y frecuentes. Hidratación abundante. Se recomienda seguimiento con nutricionista clínico.' 
+      dietRecommendations: 'IMPORTANTE: Plan supervisado médicamente. Déficit calórico controlado. Eliminar ultraprocesados y azúcares. Comidas pequeñas y frecuentes. Supervisión con nutricionista clínico obligatoria.' 
     };
   }
 }
 
 /**
- * Calcula los requerimientos calóricos y de macros basados en el perfil del usuario
+ * Calcula los requerimientos calóricos y de macros personalizados
  */
 function calculateNutritionNeeds(profile: any): { calories: number; protein: number; carbs: number; fats: number } {
   const weight = profile.weight || 70;
@@ -53,7 +53,7 @@ function calculateNutritionNeeds(profile: any): { calories: number; protein: num
   const activityLevel = profile.activityLevel || 'Moderado';
   const goal = profile.goal || 'Mantenimiento';
   
-  // Calcular TMB (Tasa Metabólica Basal) con Harris-Benedict
+  // Harris-Benedict TMB
   let tmb: number;
   if (gender === 'Masculino' || gender === 'Male') {
     tmb = 88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age);
@@ -61,7 +61,6 @@ function calculateNutritionNeeds(profile: any): { calories: number; protein: num
     tmb = 447.593 + (9.247 * weight) + (3.098 * height) - (4.330 * age);
   }
   
-  // Factor de actividad
   const activityFactors: Record<string, number> = {
     'Sedentario': 1.2,
     'Ligero (1-2 días/semana)': 1.375,
@@ -70,21 +69,19 @@ function calculateNutritionNeeds(profile: any): { calories: number; protein: num
     'Atleta profesional': 1.9
   };
   const activityFactor = activityFactors[activityLevel] || 1.55;
+  let tdee = tmb * activityFactor;
   
-  let tdee = tmb * activityFactor; // Total Daily Energy Expenditure
-  
-  // Ajustar según objetivo
-  let proteinPerKg = 1.6; // gramos por kg
+  let proteinPerKg = 1.6;
   let carbPercent = 0.45;
   let fatPercent = 0.25;
   
   if (goal.includes('Perder') || goal.includes('grasa') || goal.includes('Lose')) {
-    tdee *= 0.80; // Déficit del 20%
-    proteinPerKg = 2.2; // Más proteína para preservar músculo
+    tdee *= 0.80;
+    proteinPerKg = 2.2;
     carbPercent = 0.35;
     fatPercent = 0.30;
   } else if (goal.includes('Ganar') || goal.includes('músculo') || goal.includes('Gain')) {
-    tdee *= 1.15; // Superávit del 15%
+    tdee *= 1.15;
     proteinPerKg = 2.0;
     carbPercent = 0.50;
     fatPercent = 0.25;
@@ -104,8 +101,30 @@ function calculateNutritionNeeds(profile: any): { calories: number; protein: num
   return { calories, protein, carbs, fats };
 }
 
+/**
+ * Refina los macros según el tipo de dieta específica
+ */
+function determineMacrosByDietAndGoal(dietType: string, goal: string, baseNeeds: any): any {
+  const macros = { ...baseNeeds };
+  
+  if (dietType.includes('Cetogénica') || dietType.includes('Keto')) {
+    macros.fats = Math.round((macros.calories * 0.70) / 9);
+    macros.protein = Math.round((macros.calories * 0.25) / 4);
+    macros.carbs = Math.round((macros.calories * 0.05) / 4);
+  } else if (dietType.includes('Vegetariana')) {
+    macros.protein = Math.round(macros.protein * 1.1);
+    macros.carbs = Math.round(macros.carbs * 1.15);
+  } else if (dietType.includes('Ayuno Intermitente')) {
+    macros.protein = Math.round(macros.protein * 1.15);
+  } else if (dietType.includes('Baja en Carbohidratos')) {
+    macros.carbs = Math.round(macros.carbs * 0.6);
+    macros.fats = Math.round(macros.fats * 1.3);
+  }
+  
+  return macros;
+}
+
 const handler: Handler = async (event) => {
-  // CORS headers
   const headers = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
@@ -118,7 +137,7 @@ const handler: Handler = async (event) => {
   }
 
   try {
-    const { userId, profile, dietType, preferences, budget } = JSON.parse(event.body || '{}');
+    const { userId, profile, dietType, preferences, budget, mealsPerDay } = JSON.parse(event.body || '{}');
     
     if (!userId || !profile || !dietType) {
       return {
@@ -141,127 +160,126 @@ const handler: Handler = async (event) => {
     const genAI = new GoogleGenerativeAI(geminiApiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
     
-    // Calcular IMC del usuario
     const imcData = calculateIMC(profile.weight, profile.height);
-    
-    // Calcular necesidades nutricionales personalizadas
     const nutritionNeeds = calculateNutritionNeeds(profile);
+    const dietMacros = determineMacrosByDietAndGoal(dietType, profile.goal, nutritionNeeds);
     
-    // Preferencias alimentarias
     const preferencesText = preferences && preferences.length > 0
-      ? `PREFERENCIAS OBLIGATORIAS: ${preferences.join(', ')}. Respeta estrictamente estas preferencias.`
+      ? `RESTRICCIONES/PREFERENCIAS OBLIGATORIAS: ${preferences.join(', ')}. RESPETA ESTRICTAMENTE.`
       : 'Sin preferencias específicas.';
     
-    // Presupuesto
     const budgetText = budget && budget.amount > 0
-      ? `PRESUPUESTO: ${budget.amount} ${budget.frequency}. Sugiere ingredientes económicos y accesibles.`
+      ? `PRESUPUESTO: ${budget.amount} ${budget.frequency}. PRIORIZA ingredientes económicos y accesibles.`
       : '';
     
-    // Lesiones o condiciones que afectan la dieta
     const healthConditions = profile.injuries 
-      ? `CONDICIONES DE SALUD: ${profile.injuries}. Adapta la dieta si es necesario (ej: antiinflamatorios para lesiones).`
+      ? `CONDICIONES MÉDICAS: ${profile.injuries}. REQUIERE alimentos antiinflamatorios o según la condición.`
       : '';
+    
+    const mealCount = mealsPerDay || 5;
 
-    const prompt = `Eres un nutricionista deportivo certificado con 15+ años de experiencia. Genera un plan de alimentación PERSONALIZADO y CIENTÍFICAMENTE FUNDAMENTADO.
+    const prompt = `Eres nutricionista deportivo certificado especializado en EVIDENCIA CIENTÍFICA. 15+ años de experiencia.
 
-## DATOS DEL USUARIO:
+IMPORTANTE: Crea plan ÚNICO Y COMPLETAMENTE PERSONALIZADO. NO plantillas genéricas.
+
+## USUARIO (ÚNICA COMBINACIÓN):
 - Nombre: ${profile.name || 'Usuario'}
-- Edad: ${profile.age} años
-- Peso: ${profile.weight} kg
-- Altura: ${profile.height} cm
-- Género: ${profile.gender}
-- **IMC (Índice de Masa Corporal): ${imcData.value} - ${imcData.category}**
-- Objetivo principal: ${profile.goal}
-- Nivel de actividad: ${profile.activityLevel}
+- Edad: ${profile.age}, Peso: ${profile.weight}kg, Altura: ${profile.height}cm
+- **IMC: ${imcData.value} - ${imcData.category}**
+- Objetivo: ${profile.goal} | Actividad: ${profile.activityLevel}
 - Tipo de cuerpo: ${profile.bodyType || 'No especificado'}
 
-## CONSIDERACIONES ESPECIALES SEGÚN IMC:
-${imcData.dietRecommendations}
+## MACROS CIENTÍFICAMENTE CALCULADOS:
+- Calorías: ${dietMacros.calories} kcal
+- Proteína: ${dietMacros.protein}g
+- Carbohidratos: ${dietMacros.carbs}g
+- Grasas: ${dietMacros.fats}g
 
-## REQUERIMIENTOS NUTRICIONALES CALCULADOS:
-- Calorías diarias objetivo: ${nutritionNeeds.calories} kcal
-- Proteína: ${nutritionNeeds.protein}g (${Math.round(nutritionNeeds.protein * 4 / nutritionNeeds.calories * 100)}%)
-- Carbohidratos: ${nutritionNeeds.carbs}g
-- Grasas: ${nutritionNeeds.fats}g
-
-## TIPO DE DIETA SOLICITADA: ${dietType}
+## DIETA: ${dietType}
 ${preferencesText}
 ${budgetText}
 ${healthConditions}
 
-## REQUISITOS OBLIGATORIOS:
-1. Generar plan para 7 DÍAS DIFERENTES (no repetir los mismos platillos)
-2. Cada día debe tener 5-6 comidas: Desayuno, Snack AM, Almuerzo, Snack PM, Cena (y opcionalmente Pre-sueño)
-3. Los macros de cada día deben sumar aproximadamente las calorías objetivo (${nutritionNeeds.calories} kcal ±10%)
-4. CADA platillo debe incluir 2 alternativas por si no se tiene algún ingrediente
-5. Incluir instrucciones de preparación detalladas
-6. Variar proteínas, carbohidratos y vegetales entre días
-7. **ADAPTAR las porciones y tipo de alimentos según el IMC del usuario**
+## COMIDAS: ${mealCount} diarias
 
-## ESTRUCTURA JSON REQUERIDA (responde SOLO con este JSON, sin texto adicional):
+## REQUISITOS OBLIGATORIOS:
+1. **7 DÍAS COMPLETAMENTE DIFERENTES**: Platillos ÚNICOS cada día. NO repetir desayunos/almuerzos
+2. **${mealCount} COMIDAS VARIADAS**: Desayuno, snacks y comidas principales
+3. **MACROS PRECISOS**: ${dietMacros.calories}±50 kcal, proteína ${dietMacros.protein}±3g
+4. **2 ALTERNATIVAS POR PLATILLO**: Para ingredientes específicos
+5. **ALIMENTOS REALES**: Sin suplementos genéricos
+6. **TIMING NUTRICIONAL**: Proteína distribuida, carbos pre/post-entrenamiento
+7. **ADAPTADO AL IMC**: ${imcData.dietRecommendations}
+
+## EVIDENCIA CIENTÍFICA:
+- Distribuir proteína en 4-5 tomas (Campbell 2016)
+- Timing de carbohidratos según actividad
+- Índice glucémico moderado
+- Fibra 25-30g mínimo
+- Grasas insaturadas 75%+
+
+## JSON REQUERIDO (SOLO JSON):
 {
-  "title": "Plan Nutricional ${dietType} - Personalizado",
-  "summary": "Resumen del plan adaptado al objetivo de ${profile.goal}",
+  "title": "Plan Nutricional ${dietType}",
+  "subtitle": "Personalizado para ${profile.goal}",
+  "summary": "Resumen ejecutivo único",
   "dailyTargets": {
-    "calories": ${nutritionNeeds.calories},
-    "protein": ${nutritionNeeds.protein},
-    "carbs": ${nutritionNeeds.carbs},
-    "fats": ${nutritionNeeds.fats}
+    "calories": ${dietMacros.calories},
+    "protein": ${dietMacros.protein},
+    "carbs": ${dietMacros.carbs},
+    "fats": ${dietMacros.fats}
+  },
+  "mealTiming": {
+    "breakfast": "8:00 AM",
+    "snackAm": "10:30 AM",
+    "lunch": "1:00 PM",
+    "snackPm": "4:00 PM",
+    "dinner": "7:00 PM"
   },
   "schedule": [
     {
-      "day": "Lunes",
+      "day": "Lunes - NOMBRE ESPECÍFICO",
+      "dayGoal": "Descripción del enfoque",
+      "totalCalories": ${dietMacros.calories},
+      "totalProtein": ${dietMacros.protein},
       "meals": [
         {
-          "name": "Nombre del platillo",
-          "type": "Desayuno|Snack AM|Almuerzo|Snack PM|Cena|Pre-sueño",
-          "description": "Descripción apetitosa del platillo",
-          "ingredients": ["ingrediente 1 (cantidad)", "ingrediente 2 (cantidad)"],
-          "instructions": ["Paso 1", "Paso 2", "Paso 3"],
-          "calories": 450,
-          "protein": 35,
-          "carbs": 40,
-          "fats": 15,
-          "prepTime": "15 minutos",
+          "name": "Nombre atractivo único",
+          "type": "Desayuno|Snack AM|Almuerzo|Snack PM|Cena",
+          "description": "Descripción apetitosa",
+          "ingredients": ["ingrediente 1 (cantidad)"],
+          "instructions": ["Paso 1", "Paso 2"],
+          "cookingTime": "XX min",
+          "calories": XXX,
+          "protein": XX,
+          "carbs": XX,
+          "fats": XX,
+          "fiber": XX,
+          "prepDifficulty": "Fácil|Intermedio|Avanzado",
+          "nutritionBenefit": "Por qué beneficia",
           "alternatives": [
-            {
-              "name": "Alternativa 1",
-              "swapFor": "ingrediente a reemplazar",
-              "reason": "Por qué es buena alternativa"
-            },
-            {
-              "name": "Alternativa 2", 
-              "swapFor": "ingrediente a reemplazar",
-              "reason": "Por qué es buena alternativa"
-            }
+            {"ingredient": "a reemplazar", "with": "alternativa", "reason": "Por qué"}
           ]
         }
       ]
     }
   ],
-  "scientificBasis": [
-    "Referencia científica 1 que respalda esta dieta",
-    "Referencia científica 2"
-  ],
-  "hydrationRecommendation": "Beber X litros de agua al día según peso y actividad",
-  "weeklyShoppingList": ["ingrediente 1", "ingrediente 2"],
-  "mealPrepTips": ["Tip 1 para preparar comidas", "Tip 2"]
+  "scientificReferences": ["Campbell et al. 2016", "Helms et al. 2014"],
+  "hydrationPlan": "Litros según peso",
+  "supplementRecommendation": "Solo si es necesario",
+  "weeklyShoppingList": ["ingrediente 1"],
+  "mealPrepStrategy": "Estrategia eficiente"
 }
 
-IMPORTANTE:
-- Cada comida debe ser DIFERENTE cada día (no repetir el mismo desayuno 7 veces)
-- Las alternativas son para intercambiar ingredientes, no platillos completos
-- Sé creativo pero práctico con los ingredientes
-- Respeta estrictamente el tipo de dieta (${dietType})
+RESTRICCIONES:
+- NO repetir platillos 7 días
+- NO nombres genéricos
+- CADA alternativa viable
+- SOLO JSON`;
 
-Responde ÚNICAMENTE con el JSON, sin explicaciones adicionales ni bloques de código markdown.`;
-
-    console.log('📮 Llamando Gemini con prompt personalizado...');
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
-    
-    console.log('✅ Respuesta:', text?.substring(0, 100));
     
     if (!text) {
       return {
@@ -272,7 +290,7 @@ Responde ÚNICAMENTE con el JSON, sin explicaciones adicionales ni bloques de c�
     }
 
     let json = text;
-    const match = text.match(new RegExp('```(?:json)?\\s*([\\s\\S]*?)```'));
+    const match = text.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (match) json = match[1];
     else {
       const start = text.indexOf('{');
@@ -283,17 +301,14 @@ Responde ÚNICAMENTE con el JSON, sin explicaciones adicionales ni bloques de c�
     const planId = Date.now().toString();
     const parsedPlan = JSON.parse(json);
     
-    // Asegurar que tiene la estructura esperada
     const dietPlan = {
       id: planId,
       ...parsedPlan,
       title: parsedPlan.title || dietType,
       startDate: new Date().toISOString(),
-      // Guardar los targets calculados por si el AI los modificó
-      calculatedTargets: nutritionNeeds
+      calculatedTargets: dietMacros
     };
     
-    // Guardar en Railway
     const railwayUrl = process.env.RAILWAY_API_URL || 'https://fitgenius-ai-production.up.railway.app';
     if (userId) {
       try {
@@ -308,13 +323,12 @@ Responde ÚNICAMENTE con el JSON, sin explicaciones adicionales ni bloques de c�
         });
         
         if (saveResponse.ok) {
-          console.log('✅ Dieta guardada en Railway/Neon');
+          console.log('✅ Dieta guardada');
         } else {
-          const error = await saveResponse.text();
-          console.warn('⚠️ No se guardó en BD:', error);
+          console.warn('⚠️ No se guardó en BD');
         }
       } catch (dbErr: any) {
-        console.warn('⚠️ No se guardó en BD:', dbErr?.message);
+        console.warn('⚠️ No se guardó:', dbErr?.message);
       }
     }
     

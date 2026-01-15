@@ -40,32 +40,164 @@ function calculateIMC(weight: number, heightCm: number): { value: number; catego
   }
 }
 
-// Configuración de ejercicios por tipo de entrenamiento (basado en recomendaciones de expertos)
-const WORKOUT_CONFIG: Record<string, { exercisesPerDay: number; setsRange: [number, number]; restRange: [number, number] }> = {
-  "Weider (Frecuencia 1)": { exercisesPerDay: 6, setsRange: [3, 4], restRange: [60, 90] },
-  "Torso / Pierna": { exercisesPerDay: 7, setsRange: [3, 4], restRange: [60, 90] },
-  "Full Body": { exercisesPerDay: 8, setsRange: [3, 4], restRange: [60, 120] },
-  "Push / Pull / Legs": { exercisesPerDay: 6, setsRange: [3, 5], restRange: [60, 120] },
-  "Upper / Lower": { exercisesPerDay: 7, setsRange: [3, 4], restRange: [60, 90] },
-  "Arnold Split": { exercisesPerDay: 7, setsRange: [3, 5], restRange: [60, 90] },
-  "Calistenia": { exercisesPerDay: 8, setsRange: [3, 4], restRange: [45, 90] },
-  "Cardio Estricto": { exercisesPerDay: 6, setsRange: [2, 4], restRange: [30, 60] },
-  "HIIT / Tabata": { exercisesPerDay: 8, setsRange: [3, 5], restRange: [20, 40] },
-  "Pilates": { exercisesPerDay: 10, setsRange: [2, 3], restRange: [30, 45] },
-  "Yoga Power": { exercisesPerDay: 12, setsRange: [1, 2], restRange: [15, 30] },
-  "Zumba / Baile": { exercisesPerDay: 8, setsRange: [2, 3], restRange: [30, 45] },
-  "Kickboxing": { exercisesPerDay: 8, setsRange: [3, 4], restRange: [30, 60] }
+// Configuración de ejercicios por tipo de entrenamiento BASADA EN EVIDENCIA CIENTÍFICA
+const WORKOUT_CONFIG: Record<string, {
+  exercisesPerDay: number;
+  compoundExercises: number;
+  accessoryExercises: number;
+  setsRange: [number, number];
+  repsRange: string;
+  restRange: [number, number];
+  volumeLandmark: string;
+}> = {
+  "Weider (Frecuencia 1)": {
+    exercisesPerDay: 8,
+    compoundExercises: 3,
+    accessoryExercises: 5,
+    setsRange: [3, 5],
+    repsRange: "6-15",
+    restRange: [60, 120],
+    volumeLandmark: "10-20 sets por grupo muscular/semana"
+  },
+  "Torso / Pierna": {
+    exercisesPerDay: 9,
+    compoundExercises: 3,
+    accessoryExercises: 6,
+    setsRange: [3, 6],
+    repsRange: "6-15",
+    restRange: [60, 120],
+    volumeLandmark: "12-20 sets por grupo muscular"
+  },
+  "Full Body": {
+    exercisesPerDay: 10,
+    compoundExercises: 3,
+    accessoryExercises: 7,
+    setsRange: [2, 5],
+    repsRange: "6-15",
+    restRange: [45, 90],
+    volumeLandmark: "9-15 sets por grupo muscular"
+  },
+  "Push / Pull / Legs": {
+    exercisesPerDay: 9,
+    compoundExercises: 2,
+    accessoryExercises: 7,
+    setsRange: [3, 6],
+    repsRange: "6-15",
+    restRange: [60, 120],
+    volumeLandmark: "12-20 sets por grupo muscular"
+  },
+  "Upper / Lower": {
+    exercisesPerDay: 8,
+    compoundExercises: 3,
+    accessoryExercises: 5,
+    setsRange: [3, 5],
+    repsRange: "6-15",
+    restRange: [60, 90],
+    volumeLandmark: "10-18 sets por grupo muscular"
+  },
+  "Arnold Split": {
+    exercisesPerDay: 8,
+    compoundExercises: 3,
+    accessoryExercises: 5,
+    setsRange: [3, 6],
+    repsRange: "6-15",
+    restRange: [60, 90],
+    volumeLandmark: "15-25 sets por sesión"
+  },
+  "Calistenia": {
+    exercisesPerDay: 10,
+    compoundExercises: 4,
+    accessoryExercises: 6,
+    setsRange: [3, 5],
+    repsRange: "6-15 reps",
+    restRange: [45, 90],
+    volumeLandmark: "8-12 sets por grupo muscular"
+  },
+  "Cardio Estricto": {
+    exercisesPerDay: 1,
+    compoundExercises: 1,
+    accessoryExercises: 0,
+    setsRange: [1, 1],
+    repsRange: "Duración continua",
+    restRange: [0, 0],
+    volumeLandmark: "150-300 min/semana cardio"
+  },
+  "HIIT / Tabata": {
+    exercisesPerDay: 8,
+    compoundExercises: 3,
+    accessoryExercises: 5,
+    setsRange: [3, 5],
+    repsRange: "20-40s trabajo / 10-20s descanso",
+    restRange: [10, 30],
+    volumeLandmark: "20-30 min sesión"
+  },
+  "Pilates": {
+    exercisesPerDay: 12,
+    compoundExercises: 2,
+    accessoryExercises: 10,
+    setsRange: [2, 3],
+    repsRange: "12-20",
+    restRange: [30, 45],
+    volumeLandmark: "Control de cuerpo y core"
+  },
+  "Yoga Power": {
+    exercisesPerDay: 15,
+    compoundExercises: 2,
+    accessoryExercises: 13,
+    setsRange: [1, 2],
+    repsRange: "30s-2 min hold",
+    restRange: [15, 30],
+    volumeLandmark: "Flexibilidad y fuerza funcional"
+  },
+  "Zumba / Baile": {
+    exercisesPerDay: 1,
+    compoundExercises: 1,
+    accessoryExercises: 0,
+    setsRange: [1, 1],
+    repsRange: "45-60 min continuo",
+    restRange: [0, 0],
+    volumeLandmark: "Cardio y coordinación"
+  },
+  "Kickboxing": {
+    exercisesPerDay: 8,
+    compoundExercises: 4,
+    accessoryExercises: 4,
+    setsRange: [3, 4],
+    repsRange: "20-30 golpes/kicks x round",
+    restRange: [30, 60],
+    volumeLandmark: "Cardio, fuerza y potencia"
+  }
 };
 
-const DEFAULT_CONFIG = { exercisesPerDay: 7, setsRange: [3, 4] as [number, number], restRange: [60, 90] as [number, number] };
+const DEFAULT_CONFIG = {
+  exercisesPerDay: 8,
+  compoundExercises: 3,
+  accessoryExercises: 5,
+  setsRange: [3, 5] as [number, number],
+  repsRange: "6-15",
+  restRange: [60, 90] as [number, number],
+  volumeLandmark: "10-20 sets por grupo muscular"
+};
 
 const handler: Handler = async (event) => {
+  const headers = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS'
+  };
+
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 204, headers, body: '' };
+  }
+
   try {
     const { userId, profile, workoutType } = JSON.parse(event.body || '{}');
     
     if (!userId || !profile || !workoutType) {
       return {
         statusCode: 400,
+        headers,
         body: JSON.stringify({ error: 'Faltan parámetros' })
       };
     }
@@ -74,6 +206,7 @@ const handler: Handler = async (event) => {
     if (!geminiApiKey) {
       return {
         statusCode: 503,
+        headers,
         body: JSON.stringify({ error: 'GEMINI_API_KEY no configurada' })
       };
     }
@@ -82,92 +215,89 @@ const handler: Handler = async (event) => {
     const genAI = new GoogleGenerativeAI(geminiApiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
     
-    // Obtener configuración del tipo de entrenamiento
     const config = WORKOUT_CONFIG[workoutType] || DEFAULT_CONFIG;
-    
-    // Calcular IMC del usuario
     const imcData = calculateIMC(profile.weight, profile.height);
     
-    // Determinar nivel de dificultad basado en experiencia
     const difficultyLevel = profile.activityLevel === 'Sedentario' || profile.activityLevel === 'Ligero (1-2 días/semana)' 
       ? 'Principiante' 
       : profile.activityLevel === 'Atleta profesional' 
         ? 'Avanzado' 
         : 'Intermedio';
     
-    // Equipamiento disponible
     const equipmentList = Array.isArray(profile.equipment) 
       ? profile.equipment.join(', ') 
       : profile.equipment || 'Sin especificar';
     
-    // Lesiones o limitaciones
     const injuriesInfo = profile.injuries 
       ? `IMPORTANTE - Lesiones/Limitaciones: ${profile.injuries}. Debes adaptar los ejercicios y evitar movimientos contraindicados.` 
       : 'Sin lesiones reportadas.';
 
-    const prompt = `Eres un entrenador personal certificado con 15+ años de experiencia. Genera un plan de entrenamiento PROFESIONAL y COMPLETO.
+    const prompt = `Eres un entrenador personal certificado (NASM/ACE/ISSA) con 15+ años de experiencia en EVIDENCIA CIENTÍFICA. Conoces periodización y volumen óptimo de entrenamiento.
 
-## DATOS DEL USUARIO:
+IMPORTANTE: Crea una rutina ÚNICA Y COMPLETAMENTE PERSONALIZADA. NO reutilices plantillas genéricas.
+
+## USUARIO:
 - Nombre: ${profile.name || 'Usuario'}
-- Edad: ${profile.age} años
-- Peso: ${profile.weight} kg
-- Altura: ${profile.height} cm
-- Género: ${profile.gender}
-- **IMC (Índice de Masa Corporal): ${imcData.value} - ${imcData.category}**
-- Objetivo principal: ${profile.goal}
-- Nivel de actividad: ${profile.activityLevel}
-- Tipo de cuerpo: ${profile.bodyType || 'No especificado'}
-- Equipamiento disponible: ${equipmentList}
+- Edad: ${profile.age} años, Peso: ${profile.weight} kg, Altura: ${profile.height} cm
+- **IMC: ${imcData.value} - ${imcData.category}**
+- Objetivo: ${profile.goal} | Experiencia: ${difficultyLevel}
+- Equipamiento: ${equipmentList}
 - ${injuriesInfo}
 
-## CONSIDERACIONES ESPECIALES SEGÚN IMC:
-${imcData.recommendations}
+## CONFIGURACIÓN CIENTÍFICA:
+${config.volumeLandmark}
+Schoenfeld (2017): Hipertrofia 10-20 sets/grupo/semana, 6-15 reps. Fuerza 3-8 sets, 1-5 reps. Resistencia 2-3 sets, 12-20+ reps.
 
-## TIPO DE RUTINA: ${workoutType}
+## REQUISITOS:
+1. MÍNIMO ${config.exercisesPerDay} EJERCICIOS (${config.compoundExercises} compuestos + ${config.accessoryExercises} accesorios)
+2. VARIAR SERIES: ${config.setsRange[0]}-${config.setsRange[1]} sets (no siempre 3)
+3. VARIAR REPS: ${config.repsRange}
+4. 2 ALTERNATIVAS POR EJERCICIO
+5. Progresión científica (RPE/RIR)
+6. Periodización de 4 semanas
+7. Adaptado al IMC ${imcData.value}
 
-## REQUISITOS OBLIGATORIOS:
-1. Cada día de entrenamiento debe tener MÍNIMO ${config.exercisesPerDay} ejercicios (entre principales y accesorios)
-2. Series variables entre ${config.setsRange[0]} y ${config.setsRange[1]} series por ejercicio (NO siempre 3)
-3. Descansos entre ${config.restRange[0]}s y ${config.restRange[1]}s según la intensidad
-4. CADA ejercicio DEBE incluir 2 alternativas en caso de no tener el equipo necesario
-5. Incluir ejercicios de calentamiento al inicio y estiramientos al final
-6. Progresión lógica: de compuestos a aislamiento
-7. **ADAPTAR la intensidad y tipo de ejercicios según el IMC del usuario**
-
-## ESTRUCTURA JSON REQUERIDA (responde SOLO con este JSON, sin texto adicional):
+## JSON REQUERIDO (SOLO JSON, SIN TEXTO):
 {
-  "title": "Plan ${workoutType} - ${difficultyLevel}",
-  "description": "Plan personalizado de ${workoutType} para ${profile.goal}",
-  "frequency": "X días por semana",
-  "estimatedDuration": "60-75 minutos",
+  "title": "${workoutType} - ${difficultyLevel}",
+  "subtitle": "Personalizado para ${profile.goal}",
+  "description": "Descripción ejecutiva única",
+  "frequency": "X días/semana",
+  "estimatedDuration": "60-75 min",
   "difficulty": "${difficultyLevel}",
-  "durationWeeks": 8,
-  "recommendations": ["recomendación 1", "recomendación 2", "recomendación 3"],
+  "durationWeeks": 12,
+  "periodizationType": "Linear|Undulating|Block",
+  "trainingVolume": "${config.volumeLandmark}",
+  "recommendations": ["Recomendación 1", "Recomendación 2"],
+  "progressionStrategy": "Sistema RPE/RIR con progresión de carga",
   "schedule": [
     {
-      "dayName": "Día 1 - Nombre del enfoque",
-      "focus": "Grupos musculares principales",
+      "weekCycle": 1,
+      "dayName": "Día 1 - NOMBRE ESPECÍFICO",
+      "dayDescription": "Descripción del enfoque",
+      "focus": "Grupos musculares",
+      "exercisesCount": ${config.exercisesPerDay},
+      "estimatedTime": "60-75 min",
       "exercises": [
         {
-          "name": "Nombre del ejercicio",
+          "position": 1,
+          "name": "Nombre exacto",
           "sets": 4,
           "reps": "8-12",
           "rest": "90s",
-          "muscleGroup": "Grupo muscular",
-          "category": "warmup|main|cooldown",
+          "rpe": "7-8",
+          "rir": "2-3",
+          "muscleGroup": "Grupo",
+          "category": "warmup|main|secondary|accessory|cooldown",
           "tempo": "3-1-2-0",
-          "description": "Descripción detallada de la ejecución correcta",
-          "tips": "Consejos de forma y seguridad",
-          "videoQuery": "término de búsqueda en YouTube",
+          "description": "Ejecución detallada",
+          "cues": ["Cue 1", "Cue 2"],
+          "tips": "Errores comunes",
+          "videoQuery": "nombre YouTube",
+          "purpose": "Por qué este ejercicio aquí",
           "alternatives": [
-            {
-              "name": "Alternativa 1 (sin equipo o equipo diferente)",
-              "reason": "Por qué es buena alternativa"
-            },
-            {
-              "name": "Alternativa 2",
-              "reason": "Por qué es buena alternativa"
-            }
+            {"name": "Alternativa 1", "difficulty": "Igual|Más fácil|Más difícil", "reason": "Por qué funciona"},
+            {"name": "Alternativa 2", "difficulty": "Igual|Más fácil|Más difícil", "reason": "Por qué funciona"}
           ]
         }
       ]
@@ -176,37 +306,34 @@ ${imcData.recommendations}
   "medicalAnalysis": {
     "severity": "None|Low|Medium|High",
     "warningTitle": "Solo si hay lesiones",
-    "warningMessage": "Explicación de adaptaciones",
-    "modifications": ["modificación 1", "modificación 2"]
-  }
+    "warningMessage": "Adaptaciones",
+    "modifications": ["Modificación 1"]
+  },
+  "progressionWeeks2To4": "Cómo progresan",
+  "deloadWeek": "Semana 4: reducir volumen",
+  "nutritionSync": "Recomendaciones nutricionales",
+  "recoveryTips": ["Tip 1", "Tip 2"]
 }
 
-IMPORTANTE:
-- Incluye días de descanso activo cuando corresponda
-- Varía las series (2, 3, 4 o 5) según el ejercicio y objetivo
-- Los ejercicios de calentamiento tienen category "warmup"
-- Los ejercicios principales tienen category "main"  
-- Los estiramientos finales tienen category "cooldown"
-- SIEMPRE incluye el campo "alternatives" con 2 opciones en CADA ejercicio
+RESTRICCIONES:
+- NO solo 5 ejercicios de 3 series (MÍNIMO ${config.exercisesPerDay})
+- VARIAR series y reps
+- CADA alternativa viable`;
 
-Responde ÚNICAMENTE con el JSON, sin explicaciones adicionales ni bloques de código markdown.`;
-    
-    console.log('📮 Llamando Gemini...');
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
     
-    console.log('✅ Respuesta:', text?.substring(0, 100));
-    
     if (!text) {
       return {
         statusCode: 500,
+        headers,
         body: JSON.stringify({ error: 'Respuesta vacía de Gemini' })
       };
     }
 
     let json = text;
-    const match = text.match(new RegExp('```(?:json)?\\s*([\\s\\S]*?)```'));
+    const match = text.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (match) json = match[1];
     else {
       const start = text.indexOf('{');
@@ -217,7 +344,6 @@ Responde ÚNICAMENTE con el JSON, sin explicaciones adicionales ni bloques de c�
     const planId = Date.now().toString();
     const parsedPlan = JSON.parse(json);
     
-    // Asegurar que tiene la estructura esperada
     const workoutPlan = {
       id: planId,
       ...parsedPlan,
@@ -225,7 +351,6 @@ Responde ÚNICAMENTE con el JSON, sin explicaciones adicionales ni bloques de c�
       startDate: new Date().toISOString()
     };
     
-    // Guardar en Railway (más confiable que conexión directa a Neon)
     const railwayUrl = process.env.RAILWAY_API_URL || 'https://fitgenius-ai-production.up.railway.app';
     if (userId) {
       try {
@@ -242,24 +367,23 @@ Responde ÚNICAMENTE con el JSON, sin explicaciones adicionales ni bloques de c�
         if (saveResponse.ok) {
           console.log('✅ Rutina guardada en Railway/Neon');
         } else {
-          const error = await saveResponse.text();
-          console.warn('⚠️ No se guardó en BD:', error);
+          console.warn('⚠️ No se guardó en BD');
         }
       } catch (dbErr: any) {
         console.warn('⚠️ No se guardó en BD:', dbErr?.message);
-        // No es error fatal, el plan se devuelve de todas formas
       }
     }
     
     return {
       statusCode: 200,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      headers,
       body: JSON.stringify(workoutPlan)
     };
   } catch (error: any) {
     console.error('❌ Error:', error?.message);
     return {
       statusCode: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       body: JSON.stringify({ error: error?.message || 'Error desconocido' })
     };
   }

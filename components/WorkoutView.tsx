@@ -473,7 +473,9 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
     };
 
     const getYoutubeLink = (query: string) => {
-        return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+        // Redirect to YouTube search with the exercise query
+        // YouTube will show relevant results immediately
+        return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}&sp=mAEB`;
     };
 
     // Loading Screen for Workout Generation

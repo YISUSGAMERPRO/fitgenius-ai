@@ -882,6 +882,79 @@ app.get('/api/diet/:userId', cacheControl, (req, res) => {
     });
 });
 
+// 12. GUARDAR DIETA (desde Netlify Functions)
+app.post('/api/save-diet', (req, res) => {
+    const { userId, title, planData } = req.body;
+    
+    if (!userId || !planData) {
+        return res.status(400).json({ error: 'Faltan parámetros: userId y planData son requeridos' });
+    }
+    
+    const planId = planData.id || require('crypto').randomUUID();
+    const sql = `INSERT INTO diet_plans 
+        (id, user_id, title, description, total_calories_per_day, plan_data) 
+        VALUES (?, ?, ?, ?, ?, ?)`;
+
+    db.query(sql, [
+        planId,
+        userId,
+        title || planData.title || 'Plan de Dieta',
+        planData.summary || planData.description || '',
+        planData.dailyTargets?.calories || planData.totalCaloriesPerDay || 0,
+        JSON.stringify(planData)
+    ], (err) => {
+        if (err) {
+            console.error('❌ Error al guardar dieta en BD:', err);
+            return res.status(500).json({ error: 'Error al guardar en base de datos: ' + err.message });
+        }
+        
+        console.log('✅ Dieta guardada con éxito:', planId);
+        res.json({ 
+            success: true, 
+            id: planId,
+            message: 'Dieta guardada correctamente' 
+        });
+    });
+});
+
+// 13. GUARDAR RUTINA (desde Netlify Functions)
+app.post('/api/save-workout', (req, res) => {
+    const { userId, title, planData } = req.body;
+    
+    if (!userId || !planData) {
+        return res.status(400).json({ error: 'Faltan parámetros: userId y planData son requeridos' });
+    }
+    
+    const planId = planData.id || require('crypto').randomUUID();
+    const sql = `INSERT INTO workout_plans 
+        (id, user_id, title, description, frequency, estimated_duration, difficulty, duration_weeks, plan_data) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+    db.query(sql, [
+        planId,
+        userId,
+        title || planData.title || 'Plan de Entrenamiento',
+        planData.description || '',
+        planData.frequency || '',
+        planData.estimatedDuration || '',
+        planData.difficulty || '',
+        planData.durationWeeks || 4,
+        JSON.stringify(planData)
+    ], (err) => {
+        if (err) {
+            console.error('❌ Error al guardar rutina en BD:', err);
+            return res.status(500).json({ error: 'Error al guardar en base de datos: ' + err.message });
+        }
+        
+        console.log('✅ Rutina guardada con éxito:', planId);
+        res.json({ 
+            success: true, 
+            id: planId,
+            message: 'Rutina guardada correctamente' 
+        });
+    });
+});
+
 app.listen(PORT, () => {
     console.log(`🚀 Servidor backend corriendo en http://localhost:${PORT}`);
 });
