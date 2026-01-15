@@ -6,6 +6,7 @@ const cors = require('cors');
 const compression = require('compression');
 const PDFDocument = require('pdfkit');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
 const app = express();
@@ -124,7 +125,10 @@ if (typeof connectionConfig === 'string' && connectionConfig.startsWith('postgre
         .then(client => {
             client.release();
             console.log('✅ Conectado a la base de datos PostgreSQL con éxito.');
-            createTablesIfNotExist();
+            return createTablesIfNotExist();
+        })
+        .then(() => {
+            console.log('✅ Base de datos inicializada correctamente');
         })
         .catch(err => {
             console.error('❌ Error conectando a PostgreSQL:', err.message);
@@ -149,7 +153,11 @@ if (typeof connectionConfig === 'string' && connectionConfig.startsWith('postgre
         }
         console.log('✅ Conectado a la base de datos MySQL con éxito.');
         console.log('🗄️ Base de datos:', process.env.DB_NAME || 'railway');
-        createTablesIfNotExist();
+        createTablesIfNotExist().then(() => {
+            console.log('✅ Base de datos inicializada correctamente');
+        }).catch(err => {
+            console.error('❌ Error inicializando base de datos:', err.message);
+        });
     });
 }
 
@@ -223,96 +231,139 @@ function createTablesIfNotExist() {
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )`
         ];
-        tablesPg.forEach((sql, i) => {
-            pgPool.query(sql).then(() => {
-                console.log(`✅ Tabla ${i + 1} verificada/creada correctamente`);
-            }).catch(err => {
-                console.error(`❌ Error creando tabla ${i + 1}:`, err.message);
-            });
+        
+        // Crear promesas para tablas
+        const tablePromises = tablesPg.map((sql, i) => 
+            pgPool.query(sql)
+                .then(() => {
+                    console.log(`✅ Tabla ${i + 1} verificada/creada correctamente`);
+                })
+                .catch(err => {
+                    console.error(`❌ Error creando tabla ${i + 1}:`, err.message);
+                })
+        );
+        
+        // Agregar migraciones para columnas faltantes en user_profiles
+        const migrations = [
+            `ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(50)`,
+            `ALTER TABLE users ADD COLUMN IF NOT EXISTS password VARCHAR(255)`,
+            `ALTER TABLE users ALTER COLUMN email DROP NOT NULL`,
+            `ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS name VARCHAR(100)`,
+            `ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS age INT`,
+            `ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS height NUMERIC(5,2)`,
+            `ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS weight NUMERIC(5,2)`,
+            `ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS gender TEXT`,
+            `ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS body_type VARCHAR(50)`,
+            `ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS goal VARCHAR(100)`,
+            `ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS activity_level VARCHAR(50)`,
+            `ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS equipment JSONB`,
+            `ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS injuries TEXT`,
+            `ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS is_cycle_tracking BOOLEAN DEFAULT FALSE`,
+            `ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS last_period_start DATE`,
+            `ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS cycle_length INT`,
+            `ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()`
+        ];
+        
+        // Ejecutar todas las tablas primero, luego las migraciones
+        return Promise.all(tablePromises).then(() => {
+            const migrationPromises = migrations.map((sql, i) => 
+                pgPool.query(sql)
+                    .then(() => {
+                        console.log(`✅ Migración ${i + 1} ejecutada correctamente`);
+                    })
+                    .catch(err => {
+                        console.log(`ℹ️ Migración ${i + 1}: ${err.message.split('\n')[0]}`);
+                    })
+            );
+            return Promise.all(migrationPromises);
         });
     } else {
-        const tables = [
-            `CREATE TABLE IF NOT EXISTS users (
-                id VARCHAR(36) PRIMARY KEY,
-                username VARCHAR(50) UNIQUE NOT NULL,
-                password VARCHAR(255) NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                INDEX idx_username (username)
-            )`,
-            `CREATE TABLE IF NOT EXISTS user_profiles (
-                id VARCHAR(36) PRIMARY KEY,
-                user_id VARCHAR(36) UNIQUE NOT NULL,
-                name VARCHAR(100) NOT NULL,
-                age INT NOT NULL,
-                height DECIMAL(5,2) NOT NULL,
-                weight DECIMAL(5,2) NOT NULL,
-                gender ENUM('male', 'female', 'other') NOT NULL,
-                body_type VARCHAR(50) NOT NULL,
-                goal VARCHAR(100) NOT NULL,
-                activity_level VARCHAR(50) NOT NULL,
-                equipment JSON,
-                injuries TEXT,
-                is_cycle_tracking BOOLEAN DEFAULT FALSE,
-                last_period_start DATE,
-                cycle_length INT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-                INDEX idx_user_id (user_id)
-            )`,
-            `CREATE TABLE IF NOT EXISTS gym_members (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                name VARCHAR(100) NOT NULL,
-                email VARCHAR(100),
-                phone VARCHAR(20),
-                plan VARCHAR(50) NOT NULL,
-                start_date DATE NOT NULL,
-                status ENUM('active', 'inactive', 'expired') DEFAULT 'active',
-                last_payment_date DATE,
-                last_payment_amount DECIMAL(10,2),
-                subscription_end_date DATE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                INDEX idx_status (status)
-            )`,
-            `CREATE TABLE IF NOT EXISTS workout_plans (
-                id VARCHAR(36) PRIMARY KEY,
-                user_id VARCHAR(36) NOT NULL,
-                title VARCHAR(255) NOT NULL,
-                description TEXT,
-                frequency VARCHAR(100),
-                estimated_duration VARCHAR(100),
-                difficulty VARCHAR(50),
-                duration_weeks INT,
-                plan_data JSON NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-                INDEX idx_user_workout (user_id),
-                INDEX idx_created (created_at)
-            )`,
-            `CREATE TABLE IF NOT EXISTS diet_plans (
-                id VARCHAR(36) PRIMARY KEY,
-                user_id VARCHAR(36) NOT NULL,
-                title VARCHAR(255) NOT NULL,
-                description TEXT,
-                total_calories_per_day INT,
-                plan_data JSON NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-                INDEX idx_user_diet (user_id),
-                INDEX idx_created_diet (created_at)
-            )`
-        ];
-        tables.forEach((tableSQL, index) => {
-            db.query(tableSQL, (err) => {
-                if (err) {
-                    console.error(`❌ Error creando tabla ${index + 1}:`, err.message);
-                } else {
-                    console.log(`✅ Tabla ${index + 1} verificada/creada correctamente`);
-                }
+        return new Promise((resolve) => {
+            const tables = [
+                `CREATE TABLE IF NOT EXISTS users (
+                    id VARCHAR(36) PRIMARY KEY,
+                    username VARCHAR(50) UNIQUE NOT NULL,
+                    password VARCHAR(255) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_username (username)
+                )`,
+                `CREATE TABLE IF NOT EXISTS user_profiles (
+                    id VARCHAR(36) PRIMARY KEY,
+                    user_id VARCHAR(36) UNIQUE NOT NULL,
+                    name VARCHAR(100) NOT NULL,
+                    age INT NOT NULL,
+                    height DECIMAL(5,2) NOT NULL,
+                    weight DECIMAL(5,2) NOT NULL,
+                    gender ENUM('male', 'female', 'other') NOT NULL,
+                    body_type VARCHAR(50) NOT NULL,
+                    goal VARCHAR(100) NOT NULL,
+                    activity_level VARCHAR(50) NOT NULL,
+                    equipment JSON,
+                    injuries TEXT,
+                    is_cycle_tracking BOOLEAN DEFAULT FALSE,
+                    last_period_start DATE,
+                    cycle_length INT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                    INDEX idx_user_id (user_id)
+                )`,
+                `CREATE TABLE IF NOT EXISTS gym_members (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    email VARCHAR(100),
+                    phone VARCHAR(20),
+                    plan VARCHAR(50) NOT NULL,
+                    start_date DATE NOT NULL,
+                    status ENUM('active', 'inactive', 'expired') DEFAULT 'active',
+                    last_payment_date DATE,
+                    last_payment_amount DECIMAL(10,2),
+                    subscription_end_date DATE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_status (status)
+                )`,
+                `CREATE TABLE IF NOT EXISTS workout_plans (
+                    id VARCHAR(36) PRIMARY KEY,
+                    user_id VARCHAR(36) NOT NULL,
+                    title VARCHAR(255) NOT NULL,
+                    description TEXT,
+                    frequency VARCHAR(100),
+                    estimated_duration VARCHAR(100),
+                    difficulty VARCHAR(50),
+                    duration_weeks INT,
+                    plan_data JSON NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                    INDEX idx_user_workout (user_id),
+                    INDEX idx_created (created_at)
+                )`,
+                `CREATE TABLE IF NOT EXISTS diet_plans (
+                    id VARCHAR(36) PRIMARY KEY,
+                    user_id VARCHAR(36) NOT NULL,
+                    title VARCHAR(255) NOT NULL,
+                    description TEXT,
+                    total_calories_per_day INT,
+                    plan_data JSON NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                    INDEX idx_user_diet (user_id),
+                    INDEX idx_created_diet (created_at)
+                )`
+            ];
+            tables.forEach((tableSQL, index) => {
+                db.query(tableSQL, (err) => {
+                    if (err) {
+                        console.error(`❌ Error creando tabla ${index + 1}:`, err.message);
+                    } else {
+                        console.log(`✅ Tabla ${index + 1} verificada/creada correctamente`);
+                    }
+                });
             });
+            // Dar tiempo para que se creen las tablas
+            setTimeout(resolve, 2000);
         });
     }
 }
@@ -439,6 +490,16 @@ app.get('/api/profile/:userId', noCache, (req, res) => {
 app.post('/api/profile', (req, res) => {
     const { id, user_id, name, age, height, weight, gender, body_type, goal, activity_level, equipment, injuries, is_cycle_tracking, last_period_start, cycle_length } = req.body;
     
+    // Validar user_id
+    if (!user_id) {
+        return res.status(400).json({ error: 'user_id es requerido' });
+    }
+    
+    // Validar name
+    if (!name) {
+        return res.status(400).json({ error: 'name es requerido' });
+    }
+    
     // Mapear género desde frontend (español) a DB (inglés)
     const genderMapToDb = {
         'Masculino': 'male',
@@ -463,16 +524,19 @@ app.post('/api/profile', (req, res) => {
                 goal = ?, activity_level = ?, equipment = ?, injuries = ?, 
                 is_cycle_tracking = ?, last_period_start = ?, cycle_length = ?
                 WHERE user_id = ?`;
-            params = [name, age, height, weight, normalizedGender, body_type, goal, activity_level, JSON.stringify(equipment || []), injuries, is_cycle_tracking, last_period_start, cycle_length, user_id];
+            params = [name, age || null, height || null, weight || null, normalizedGender, body_type || null, goal || null, activity_level || null, JSON.stringify(equipment || []), injuries || null, is_cycle_tracking || false, last_period_start || null, cycle_length || null, user_id];
         } else {
             // INSERT
             sql = `INSERT INTO user_profiles (id, user_id, name, age, height, weight, gender, body_type, goal, activity_level, equipment, injuries, is_cycle_tracking, last_period_start, cycle_length)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-            params = [id, user_id, name, age, height, weight, normalizedGender, body_type, goal, activity_level, JSON.stringify(equipment || []), injuries, is_cycle_tracking, last_period_start, cycle_length];
+            params = [id || uuidv4(), user_id, name, age || null, height || null, weight || null, normalizedGender, body_type || null, goal || null, activity_level || null, JSON.stringify(equipment || []), injuries || null, is_cycle_tracking || false, last_period_start || null, cycle_length || null];
         }
         
         db.query(sql, params, (err, result) => {
-            if (err) return res.status(500).json({ error: err.message });
+            if (err) {
+                console.error('❌ Error guardando perfil:', err);
+                return res.status(500).json({ error: err.message });
+            }
             console.log('✅ Perfil guardado/actualizado');
             res.json({ message: 'Perfil guardado correctamente' });
         });
