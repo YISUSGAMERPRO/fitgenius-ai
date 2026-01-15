@@ -192,7 +192,7 @@ const handler: Handler = async (event) => {
   }
 
   try {
-    const { userId, profile, workoutType } = JSON.parse(event.body || '{}');
+    const { userId, profile, workoutType, frequency, selectedDays, focus, duration } = JSON.parse(event.body || '{}');
     
     if (!userId || !profile || !workoutType) {
       return {
@@ -218,6 +218,12 @@ const handler: Handler = async (event) => {
     const config = WORKOUT_CONFIG[workoutType] || DEFAULT_CONFIG;
     const imcData = calculateIMC(profile.weight, profile.height);
     
+    // Datos de frecuencia y días
+    const trainingFrequency = frequency || 3;
+    const trainingDays = selectedDays || ['Lunes', 'Miércoles', 'Viernes'];
+    const muscularFocus = focus || '';
+    const cycleDuration = duration || 12;
+    
     const difficultyLevel = profile.activityLevel === 'Sedentario' || profile.activityLevel === 'Ligero (1-2 días/semana)' 
       ? 'Principiante' 
       : profile.activityLevel === 'Atleta profesional' 
@@ -231,6 +237,10 @@ const handler: Handler = async (event) => {
     const injuriesInfo = profile.injuries 
       ? `IMPORTANTE - Lesiones/Limitaciones: ${profile.injuries}. Debes adaptar los ejercicios y evitar movimientos contraindicados.` 
       : 'Sin lesiones reportadas.';
+    
+    const focusInfo = muscularFocus 
+      ? `\n- **ENFOQUE PRIORITARIO**: ${muscularFocus} (incluir más ejercicios y volumen para este grupo muscular)` 
+      : '';
 
     const prompt = `Eres un entrenador personal certificado (NASM/ACE/ISSA) con 15+ años de experiencia en EVIDENCIA CIENTÍFICA. Conoces periodización y volumen óptimo de entrenamiento.
 
@@ -242,38 +252,42 @@ IMPORTANTE: Crea una rutina ÚNICA Y COMPLETAMENTE PERSONALIZADA. NO reutilices 
 - **IMC: ${imcData.value} - ${imcData.category}**
 - Objetivo: ${profile.goal} | Experiencia: ${difficultyLevel}
 - Equipamiento: ${equipmentList}
-- ${injuriesInfo}
+- ${injuriesInfo}${focusInfo}
+
+## PREFERENCIAS DE ENTRENAMIENTO:
+- **Frecuencia**: ${trainingFrequency} días/semana
+- **Días seleccionados**: ${trainingDays.join(', ')}
+- **Duración del ciclo**: ${cycleDuration} semanas
 
 ## CONFIGURACIÓN CIENTÍFICA:
 ${config.volumeLandmark}
 Schoenfeld (2017): Hipertrofia 10-20 sets/grupo/semana, 6-15 reps. Fuerza 3-8 sets, 1-5 reps. Resistencia 2-3 sets, 12-20+ reps.
 
 ## REQUISITOS:
-1. MÍNIMO ${config.exercisesPerDay} EJERCICIOS (${config.compoundExercises} compuestos + ${config.accessoryExercises} accesorios)
-2. VARIAR SERIES: ${config.setsRange[0]}-${config.setsRange[1]} sets (no siempre 3)
-3. VARIAR REPS: ${config.repsRange}
-4. 2 ALTERNATIVAS POR EJERCICIO
-5. Progresión científica (RPE/RIR)
-6. Periodización de 4 semanas
-7. Adaptado al IMC ${imcData.value}
-8. **CRÍTICO: GENERAR 3-6 DÍAS COMPLETOS EN EL ARRAY "schedule"** según el tipo de entrenamiento
+1. GENERAR EXACTAMENTE ${trainingFrequency} DÍAS DE ENTRENAMIENTO
+2. CADA DÍA: MÍNIMO ${config.exercisesPerDay} EJERCICIOS (${config.compoundExercises} compuestos + ${config.accessoryExercises} accesorios)
+3. VARIAR SERIES: ${config.setsRange[0]}-${config.setsRange[1]} sets (no siempre 3)
+4. VARIAR REPS: ${config.repsRange}
+5. 2 ALTERNATIVAS POR EJERCICIO
+6. Progresión científica (RPE/RIR)
+7. Periodización de 4 semanas
+8. Adaptado al IMC ${imcData.value}
+9. **CRÍTICO: Distribuir grupos musculares en los ${trainingFrequency} días**
 
-## ESTRUCTURA DE DÍAS:
-- Full Body: 3 días (Día A, Día B, Día C)
-- Push/Pull/Legs: 3 días (Push, Pull, Legs) o 6 días (PPL-PPL)
-- Torso/Pierna: 4 días (Torso A, Pierna A, Torso B, Pierna B)
-- Upper/Lower: 4 días (Upper A, Lower A, Upper B, Lower B)
-- Weider: 5-6 días (Pecho, Espalda, Piernas, Hombros, Brazos, [Abs])
+## ESTRUCTURA DE DÍAS (GENERAR ${trainingFrequency} DÍAS):
+Los días de entrenamiento son: ${trainingDays.join(', ')}
+Nombrar cada día del schedule como "${trainingDays[0]}", "${trainingDays[1] || ''}", etc.
 
 ## JSON REQUERIDO (SOLO JSON, SIN TEXTO):
 {
   "title": "${workoutType} - ${difficultyLevel}",
   "subtitle": "Personalizado para ${profile.goal}",
   "description": "Descripción ejecutiva única",
-  "frequency": "X días/semana",
+  "frequency": "${trainingFrequency} días/semana",
+  "trainingDays": ${JSON.stringify(trainingDays)},
   "estimatedDuration": "60-75 min",
   "difficulty": "${difficultyLevel}",
-  "durationWeeks": 12,
+  "durationWeeks": ${cycleDuration},
   "periodizationType": "Linear|Undulating|Block",
   "trainingVolume": "${config.volumeLandmark}",
   "recommendations": ["Recomendación 1", "Recomendación 2"],
@@ -281,7 +295,7 @@ Schoenfeld (2017): Hipertrofia 10-20 sets/grupo/semana, 6-15 reps. Fuerza 3-8 se
   "schedule": [
     {
       "weekCycle": 1,
-      "dayName": "Día 1 - NOMBRE ESPECÍFICO",
+      "dayName": "${trainingDays[0]} - NOMBRE ESPECÍFICO",
       "dayDescription": "Descripción del enfoque",
       "focus": "Grupos musculares",
       "exercisesCount": ${config.exercisesPerDay},
@@ -312,7 +326,7 @@ Schoenfeld (2017): Hipertrofia 10-20 sets/grupo/semana, 6-15 reps. Fuerza 3-8 se
     },
     {
       "weekCycle": 1,
-      "dayName": "Día 2 - NOMBRE ESPECÍFICO",
+      "dayName": "${trainingDays[1] || 'Día 2'} - NOMBRE ESPECÍFICO",
       "dayDescription": "Descripción del enfoque",
       "focus": "Grupos musculares",
       "exercisesCount": ${config.exercisesPerDay},
@@ -321,14 +335,41 @@ Schoenfeld (2017): Hipertrofia 10-20 sets/grupo/semana, 6-15 reps. Fuerza 3-8 se
     },
     {
       "weekCycle": 1,
-      "dayName": "Día 3 - NOMBRE ESPECÍFICO",
+      "dayName": "${trainingDays[2] || 'Día 3'} - NOMBRE ESPECÍFICO",
       "dayDescription": "Descripción del enfoque",
       "focus": "Grupos musculares",
       "exercisesCount": ${config.exercisesPerDay},
       "estimatedTime": "60-75 min",
       "exercises": [...]
-    }
-    // CONTINUAR SEGÚN EL TIPO DE ENTRENAMIENTO (mínimo 3, máximo 6 días)
+    }${trainingFrequency >= 4 ? `,
+    {
+      "weekCycle": 1,
+      "dayName": "${trainingDays[3] || 'Día 4'} - NOMBRE ESPECÍFICO",
+      "dayDescription": "Descripción del enfoque",
+      "focus": "Grupos musculares",
+      "exercisesCount": ${config.exercisesPerDay},
+      "estimatedTime": "60-75 min",
+      "exercises": [...]
+    }` : ''}${trainingFrequency >= 5 ? `,
+    {
+      "weekCycle": 1,
+      "dayName": "${trainingDays[4] || 'Día 5'} - NOMBRE ESPECÍFICO",
+      "dayDescription": "Descripción del enfoque",
+      "focus": "Grupos musculares",
+      "exercisesCount": ${config.exercisesPerDay},
+      "estimatedTime": "60-75 min",
+      "exercises": [...]
+    }` : ''}${trainingFrequency >= 6 ? `,
+    {
+      "weekCycle": 1,
+      "dayName": "${trainingDays[5] || 'Día 6'} - NOMBRE ESPECÍFICO",
+      "dayDescription": "Descripción del enfoque",
+      "focus": "Grupos musculares",
+      "exercisesCount": ${config.exercisesPerDay},
+      "estimatedTime": "60-75 min",
+      "exercises": [...]
+    }` : ''}
+    // GENERAR EXACTAMENTE ${trainingFrequency} DÍAS COMPLETOS CON TODOS LOS EJERCICIOS
   ],
   "medicalAnalysis": {
     "severity": "None|Low|Medium|High",
@@ -346,7 +387,9 @@ RESTRICCIONES:
 - NO solo 5 ejercicios de 3 series (MÍNIMO ${config.exercisesPerDay})
 - VARIAR series y reps
 - CADA alternativa viable
-- **GENERAR MÍNIMO 3 DÍAS COMPLETOS, MÁXIMO 6 DÍAS** en el array schedule`;
+- **GENERAR EXACTAMENTE ${trainingFrequency} DÍAS COMPLETOS** en el array schedule
+- Distribuir grupos musculares equilibradamente en los ${trainingFrequency} días seleccionados: ${trainingDays.join(', ')}
+${muscularFocus ? `- PRIORIZAR ${muscularFocus} con mayor volumen y ejercicios variados` : ''}`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;

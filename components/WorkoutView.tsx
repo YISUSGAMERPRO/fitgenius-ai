@@ -51,6 +51,8 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
     const [genType, setGenType] = useState(WORKOUT_TYPES[0]);
     const [genFocus, setGenFocus] = useState('');
     const [genDuration, setGenDuration] = useState('expert'); // 'expert' or weeks
+    const [genFrequency, setGenFrequency] = useState(3); // Días por semana
+    const [genSelectedDays, setGenSelectedDays] = useState<string[]>(['Lunes', 'Miércoles', 'Viernes']); // Días específicos
 
     // Session State
     const [isSessionActive, setIsSessionActive] = useState(false);
@@ -244,7 +246,12 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
         
         try {
             console.log('🏋️ Iniciando generación de rutina...');
-            const newPlan = await api.generateWorkout(userId, user, genType);
+            const newPlan = await api.generateWorkout(userId, user, genType, {
+                frequency: genFrequency,
+                selectedDays: genSelectedDays,
+                focus: genFocus || undefined,
+                duration: genDuration !== 'expert' ? parseInt(genDuration) : undefined
+            });
             clearTimeout(timeoutId);
             
             if (!newPlan) {
@@ -583,6 +590,69 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
                             <option value="8">8 Semanas</option>
                             <option value="12">12 Semanas</option>
                         </select>
+                    </div>
+
+                    <div>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Frecuencia de Entrenamiento</label>
+                        <select 
+                            className="w-full mt-2 bg-slate-800 border border-slate-700 rounded-xl p-3 text-white outline-none focus:border-brand-500"
+                            value={genFrequency}
+                            onChange={e => {
+                                const freq = parseInt(e.target.value);
+                                setGenFrequency(freq);
+                                // Auto-seleccionar días según frecuencia
+                                const defaultDays: Record<number, string[]> = {
+                                    2: ['Lunes', 'Jueves'],
+                                    3: ['Lunes', 'Miércoles', 'Viernes'],
+                                    4: ['Lunes', 'Martes', 'Jueves', 'Viernes'],
+                                    5: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'],
+                                    6: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+                                };
+                                setGenSelectedDays(defaultDays[freq] || defaultDays[3]);
+                            }}
+                        >
+                            <option value="2">2 días/semana</option>
+                            <option value="3">3 días/semana</option>
+                            <option value="4">4 días/semana</option>
+                            <option value="5">5 días/semana</option>
+                            <option value="6">6 días/semana</option>
+                        </select>
+                        <p className="text-xs text-slate-500 mt-2">Recomendado: 3-5 días para mejores resultados</p>
+                    </div>
+
+                    <div>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Días de Entrenamiento</label>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'].map(day => {
+                                const isSelected = genSelectedDays.includes(day);
+                                const canToggle = !isSelected || genSelectedDays.length > 2; // Mínimo 2 días
+                                
+                                return (
+                                    <button
+                                        key={day}
+                                        type="button"
+                                        disabled={!canToggle && isSelected}
+                                        onClick={() => {
+                                            if (isSelected) {
+                                                setGenSelectedDays(genSelectedDays.filter(d => d !== day));
+                                                setGenFrequency(genSelectedDays.length - 1);
+                                            } else {
+                                                setGenSelectedDays([...genSelectedDays, day]);
+                                                setGenFrequency(genSelectedDays.length + 1);
+                                            }
+                                        }}
+                                        className={`py-2 px-3 rounded-lg font-semibold text-sm transition-all border-2 ${
+                                            isSelected
+                                                ? 'bg-brand-600 text-white border-brand-500 shadow-lg shadow-brand-500/20'
+                                                : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-600'
+                                        }`}
+                                    >
+                                        {day.slice(0, 3)}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <p className="text-xs text-slate-500 mt-2">Selecciona los días que entrenarás</p>
                     </div>
 
                     <button 

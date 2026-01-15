@@ -181,14 +181,32 @@ export const api = {
     },
 
     // --- GENERACIÓN DE RUTINAS Y DIETAS CON IA ---
-    generateWorkout: async (userId: string, profile: UserProfile, workoutType: string): Promise<any> => {
+    generateWorkout: async (
+        userId: string, 
+        profile: UserProfile, 
+        workoutType: string,
+        options?: {
+            frequency?: number;
+            selectedDays?: string[];
+            focus?: string;
+            duration?: number;
+        }
+    ): Promise<any> => {
         try {
             console.log('📤 Enviando solicitud de generación de rutina a Netlify Function...');
             // Usar Netlify Function en lugar del servidor
             const res = await fetch('/.netlify/functions/generate-workout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId, profile, workoutType })
+                body: JSON.stringify({ 
+                    userId, 
+                    profile, 
+                    workoutType,
+                    frequency: options?.frequency,
+                    selectedDays: options?.selectedDays,
+                    focus: options?.focus,
+                    duration: options?.duration
+                })
             });
             
             if (!res.ok) {
