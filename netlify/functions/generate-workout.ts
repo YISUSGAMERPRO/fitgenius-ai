@@ -331,26 +331,34 @@ JSON (${trainingFrequency} días completos):
       startDate: new Date().toISOString()
     };
     
-    const railwayUrl = process.env.RAILWAY_API_URL || 'https://fitgenius-ai-production.up.railway.app';
+    const railwayUrl = process.env.RAILWAY_API_URL || process.env.VITE_API_URL || 'https://fitgenius-ai-production.up.railway.app';
+    
     if (userId) {
       try {
+        const saveBody = {
+          userId,
+          title: workoutPlan.title || 'Plan de Entrenamiento',
+          planData: workoutPlan
+        };
+        
+        console.log('📤 Guardando en:', railwayUrl, '| Datos:', { userId, titleLength: saveBody.title?.length });
+        
         const saveResponse = await fetch(`${railwayUrl}/api/save-workout`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId,
-            title: workoutPlan.title || 'Plan de Entrenamiento',
-            planData: workoutPlan
-          })
+          body: JSON.stringify(saveBody)
         });
+        
+        const saveData = await saveResponse.text();
+        console.log('Respuesta BD:', saveData.substring(0, 200));
         
         if (saveResponse.ok) {
           console.log('✅ Rutina guardada en Railway/Neon');
         } else {
-          console.warn('⚠️ No se guardó en BD');
+          console.warn('⚠️ Error al guardar (', saveResponse.status, '):', saveData);
         }
       } catch (dbErr: any) {
-        console.warn('⚠️ No se guardó en BD:', dbErr?.message);
+        console.error('❌ Error conectando a BD:', dbErr?.message);
       }
     }
     

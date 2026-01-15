@@ -309,17 +309,21 @@ RESTRICCIONES:
       calculatedTargets: dietMacros
     };
     
-    const railwayUrl = process.env.RAILWAY_API_URL || 'https://fitgenius-ai-production.up.railway.app';
+    const railwayUrl = process.env.RAILWAY_API_URL || process.env.VITE_API_URL || 'https://fitgenius-ai-production.up.railway.app';
     if (userId) {
       try {
+        const saveBody = {
+          userId,
+          title: dietPlan.title || 'Plan de Dieta',
+          planData: dietPlan
+        };
+        
+        console.log('📤 Guardando dieta en:', railwayUrl);
+        
         const saveResponse = await fetch(`${railwayUrl}/api/save-diet`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId,
-            title: dietPlan.title || 'Plan de Dieta',
-            planData: dietPlan
-          })
+          body: JSON.stringify(saveBody)
         });
         
         if (saveResponse.ok) {
