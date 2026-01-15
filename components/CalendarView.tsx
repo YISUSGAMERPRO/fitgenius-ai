@@ -665,9 +665,9 @@ const CalendarView: React.FC<Props> = ({ userId, onNavigate }) => {
                         <div className="bg-slate-900 rounded-2xl p-4 border border-slate-700 shadow-xl relative z-10">
                             <h3 className="text-xl font-bold text-white mb-2">{viewMealModal.name}</h3>
                             <div className="flex flex-wrap gap-2 text-xs font-bold">
-                                <span className="bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded border border-orange-500/20">{viewMealModal.calories} kcal</span>
-                                <span className="bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded border border-blue-500/20">P: {viewMealModal.protein}g</span>
-                                <span className="bg-green-500/20 text-green-400 px-2 py-0.5 rounded border border-green-500/20">C: {viewMealModal.carbs}g</span>
+                                <span className="bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded border border-orange-500/20">{viewMealModal.calories || 0} kcal</span>
+                                <span className="bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded border border-blue-500/20">P: {viewMealModal.protein || 0}g</span>
+                                <span className="bg-green-500/20 text-green-400 px-2 py-0.5 rounded border border-green-500/20">C: {viewMealModal.carbs || 0}g</span>
                             </div>
                         </div>
                     </div>
@@ -1439,9 +1439,9 @@ const CalendarView: React.FC<Props> = ({ userId, onNavigate }) => {
                                             </div>
                                             <p className="text-xs text-slate-400 mb-3 line-clamp-2">{meal.description}</p>
                                             <div className="grid grid-cols-3 gap-2 text-[10px] text-slate-500 font-medium">
-                                                <div>P: <span className="text-slate-300">{meal.protein}g</span></div>
-                                                <div>C: <span className="text-slate-300">{meal.carbs}g</span></div>
-                                                <div>G: <span className="text-slate-300">{meal.fats}g</span></div>
+                                                <div>P: <span className="text-slate-300">{meal.protein || 0}g</span></div>
+                                                <div>C: <span className="text-slate-300">{meal.carbs || 0}g</span></div>
+                                                <div>G: <span className="text-slate-300">{meal.fats || 0}g</span></div>
                                             </div>
                                          </div>
                                      </div>

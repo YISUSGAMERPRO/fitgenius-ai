@@ -6,6 +6,28 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as ReTooltip, Legend 
 import { BookOpen, Droplets, Utensils, RefreshCw, ChefHat, Salad, List, CheckCircle2, Filter, X, CalendarDays, GripVertical, Download, Printer, ChevronDown, ChevronUp, DollarSign, Wallet, TrendingUp, Flame, Settings2, LayoutTemplate, Info, Circle, Check, Loader2, Shuffle } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 
+// Función para normalizar la dieta con valores por defecto
+function normalizeDiet(diet: any): DietPlan | null {
+    if (!diet) return null;
+    
+    // Calcular targets por defecto basados en dailyCalories si no existen
+    const defaultCalories = diet.dailyCalories || 2000;
+    const defaultTargets = {
+        calories: defaultCalories,
+        protein: diet.proteinTarget || Math.round(defaultCalories * 0.25 / 4),
+        carbs: Math.round(defaultCalories * 0.45 / 4),
+        fats: Math.round(defaultCalories * 0.30 / 9)
+    };
+    
+    return {
+        ...diet,
+        dailyTargets: diet.dailyTargets || defaultTargets,
+        schedule: diet.schedule || diet.mealPlan || [],
+        scientificBasis: diet.scientificBasis || [],
+        hydrationRecommendation: diet.hydrationRecommendation || 'Bebe al menos 2-3 litros de agua al día.'
+    };
+}
+
 interface Props {
   user: UserProfile;
   userId: string;
@@ -116,13 +138,13 @@ const DietView: React.FC<Props> = ({ user, userId }) => {
             const parsed = JSON.parse(savedDiet);
             // Backward compatibility check
             if (parsed.schedule && Array.isArray(parsed.schedule)) {
-                setDiet(parsed);
+                setDiet(normalizeDiet(parsed));
                 setActiveTab('plan'); // Default to plan if exists
             } else if (parsed.meals && Array.isArray(parsed.meals)) {
-                setDiet({
+                setDiet(normalizeDiet({
                     ...parsed,
                     schedule: [{ day: 'Día Estándar', meals: parsed.meals }]
-                });
+                }));
                 setActiveTab('plan');
             }
         } catch (e) { console.error("Error loading diet", e); }
@@ -215,7 +237,7 @@ const DietView: React.FC<Props> = ({ user, userId }) => {
       // Inject start date to track the week accurately
       plan.startDate = new Date().toISOString();
 
-      setDiet(plan);
+      setDiet(normalizeDiet(plan));
       setSelectedDayIndex(0);
       setCompletedMeals({}); // Reset progress on new diet
       setActiveTab('plan'); // Switch to view mode
@@ -401,10 +423,10 @@ const DietView: React.FC<Props> = ({ user, userId }) => {
     }
   };
 
-  const macroData = diet ? [
-    { name: 'Proteína', value: diet.dailyTargets.protein, color: '#0ea5e9' }, // Brand 500
-    { name: 'Carbos', value: diet.dailyTargets.carbs, color: '#22c55e' }, // Green 500
-    { name: 'Grasas', value: diet.dailyTargets.fats, color: '#eab308' }, // Yellow 500
+  const macroData = diet?.dailyTargets ? [
+    { name: 'Proteína', value: diet.dailyTargets.protein || 0, color: '#0ea5e9' }, // Brand 500
+    { name: 'Carbos', value: diet.dailyTargets.carbs || 0, color: '#22c55e' }, // Green 500
+    { name: 'Grasas', value: diet.dailyTargets.fats || 0, color: '#eab308' }, // Yellow 500
   ] : [];
 
   const currentDayMeals = diet?.schedule ? diet.schedule[selectedDayIndex]?.meals : [];
@@ -417,10 +439,10 @@ const DietView: React.FC<Props> = ({ user, userId }) => {
           const isCompleted = completedMeals[`${selectedDayIndex}-${idx}`];
           if (isCompleted) {
               return {
-                  calories: acc.calories + meal.calories,
-                  protein: acc.protein + meal.protein,
-                  carbs: acc.carbs + meal.carbs,
-                  fats: acc.fats + meal.fats
+                  calories: acc.calories + (meal.calories || 0),
+                  protein: acc.protein + (meal.protein || 0),
+                  carbs: acc.carbs + (meal.carbs || 0),
+                  fats: acc.fats + (meal.fats || 0)
               };
           }
           return acc;
@@ -728,7 +750,7 @@ const DietView: React.FC<Props> = ({ user, userId }) => {
                          </ResponsiveContainer>
                          {/* Center Calories */}
                          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-[60%] text-center">
-                             <div className="text-3xl font-black text-white">{diet.dailyTargets.calories}</div>
+                             <div className="text-3xl font-black text-white">{diet.dailyTargets?.calories || 0}</div>
                              <div className="text-[10px] text-slate-500 uppercase font-bold">Kcal</div>
                          </div>
                     </div>
@@ -744,10 +766,10 @@ const DietView: React.FC<Props> = ({ user, userId }) => {
                     </div>
                     
                     <div className="space-y-4">
-                        <ProgressBar label="Calorías" current={dailyProgress.calories} target={diet.dailyTargets.calories} color="text-orange-400" bg="bg-orange-500" />
-                        <ProgressBar label="Proteína" current={dailyProgress.protein} target={diet.dailyTargets.protein} color="text-blue-400" bg="bg-blue-500" unit="g" />
-                        <ProgressBar label="Carbohidratos" current={dailyProgress.carbs} target={diet.dailyTargets.carbs} color="text-green-400" bg="bg-green-500" unit="g" />
-                        <ProgressBar label="Grasas" current={dailyProgress.fats} target={diet.dailyTargets.fats} color="text-yellow-400" bg="bg-yellow-500" unit="g" />
+                        <ProgressBar label="Calorías" current={dailyProgress.calories} target={diet.dailyTargets?.calories || 0} color="text-orange-400" bg="bg-orange-500" />
+                        <ProgressBar label="Proteína" current={dailyProgress.protein} target={diet.dailyTargets?.protein || 0} color="text-blue-400" bg="bg-blue-500" unit="g" />
+                        <ProgressBar label="Carbohidratos" current={dailyProgress.carbs} target={diet.dailyTargets?.carbs || 0} color="text-green-400" bg="bg-green-500" unit="g" />
+                        <ProgressBar label="Grasas" current={dailyProgress.fats} target={diet.dailyTargets?.fats || 0} color="text-yellow-400" bg="bg-yellow-500" unit="g" />
                     </div>
                     <div className="mt-4 text-center">
                         <span className="text-[10px] text-slate-500 italic">Marca tus comidas para ver el progreso</span>
