@@ -460,6 +460,7 @@ ${muscularFocus ? `- PRIORIZAR ${muscularFocus} con mayor volumen y ejercicios v
   }
 };
 
-export { handler };};
+export { handler };
+
 
 export { handler };
