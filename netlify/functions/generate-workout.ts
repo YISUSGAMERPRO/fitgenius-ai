@@ -242,154 +242,63 @@ const handler: Handler = async (event) => {
       ? `\n- **ENFOQUE PRIORITARIO**: ${muscularFocus} (incluir más ejercicios y volumen para este grupo muscular)` 
       : '';
 
-    const prompt = `Eres un entrenador personal certificado (NASM/ACE/ISSA) con 15+ años de experiencia en EVIDENCIA CIENTÍFICA. Conoces periodización y volumen óptimo de entrenamiento.
+    const prompt = `Eres entrenador personal experto. Crea rutina ${workoutType} personalizada.
 
-IMPORTANTE: Crea una rutina ÚNICA Y COMPLETAMENTE PERSONALIZADA. NO reutilices plantillas genéricas.
-
-## USUARIO:
-- Nombre: ${profile.name || 'Usuario'}
-- Edad: ${profile.age} años, Peso: ${profile.weight} kg, Altura: ${profile.height} cm
-- **IMC: ${imcData.value} - ${imcData.category}**
-- Objetivo: ${profile.goal} | Experiencia: ${difficultyLevel}
+USUARIO:
+- ${profile.age} años, ${profile.weight}kg, ${profile.height}cm, IMC: ${imcData.value}
+- Objetivo: ${profile.goal}
 - Equipamiento: ${equipmentList}
-- ${injuriesInfo}${focusInfo}
+${injuriesInfo}${focusInfo}
 
-## PREFERENCIAS DE ENTRENAMIENTO:
-- **Frecuencia**: ${trainingFrequency} días/semana
-- **Días seleccionados**: ${trainingDays.join(', ')}
-- **Duración del ciclo**: ${cycleDuration} semanas
+PLAN:
+- ${trainingFrequency} días: ${trainingDays.join(', ')}
+- ${config.exercisesPerDay} ejercicios/día
+- Series: ${config.setsRange[0]}-${config.setsRange[1]}, Reps: ${config.repsRange}
 
-## CONFIGURACIÓN CIENTÍFICA:
-${config.volumeLandmark}
-Schoenfeld (2017): Hipertrofia 10-20 sets/grupo/semana, 6-15 reps. Fuerza 3-8 sets, 1-5 reps. Resistencia 2-3 sets, 12-20+ reps.
-
-## REQUISITOS:
-1. GENERAR EXACTAMENTE ${trainingFrequency} DÍAS DE ENTRENAMIENTO
-2. CADA DÍA: MÍNIMO ${config.exercisesPerDay} EJERCICIOS (${config.compoundExercises} compuestos + ${config.accessoryExercises} accesorios)
-3. VARIAR SERIES: ${config.setsRange[0]}-${config.setsRange[1]} sets (no siempre 3)
-4. VARIAR REPS: ${config.repsRange}
-5. 2 ALTERNATIVAS POR EJERCICIO
-6. Progresión científica (RPE/RIR)
-7. Periodización de 4 semanas
-8. Adaptado al IMC ${imcData.value}
-9. **CRÍTICO: Distribuir grupos musculares en los ${trainingFrequency} días**
-
-## ESTRUCTURA DE DÍAS (GENERAR ${trainingFrequency} DÍAS):
-Los días de entrenamiento son: ${trainingDays.join(', ')}
-Nombrar cada día del schedule como "${trainingDays[0]}", "${trainingDays[1] || ''}", etc.
-
-## JSON REQUERIDO (SOLO JSON, SIN TEXTO):
+JSON (${trainingFrequency} días completos):
 {
-  "title": "${workoutType} - ${difficultyLevel}",
-  "subtitle": "Personalizado para ${profile.goal}",
-  "description": "Descripción ejecutiva única",
+  "title": "${workoutType}",
+  "subtitle": "${profile.goal}",
+  "description": "Plan personalizado",
   "frequency": "${trainingFrequency} días/semana",
   "trainingDays": ${JSON.stringify(trainingDays)},
-  "estimatedDuration": "60-75 min",
+  "estimatedDuration": "60 min",
   "difficulty": "${difficultyLevel}",
   "durationWeeks": ${cycleDuration},
-  "periodizationType": "Linear|Undulating|Block",
-  "trainingVolume": "${config.volumeLandmark}",
-  "recommendations": ["Recomendación 1", "Recomendación 2"],
-  "progressionStrategy": "Sistema RPE/RIR con progresión de carga",
+  "recommendations": ["Calentar 5-10min", "Hidratarse", "Descansar entre series"],
   "schedule": [
     {
-      "weekCycle": 1,
-      "dayName": "${trainingDays[0]} - NOMBRE ESPECÍFICO",
-      "dayDescription": "Descripción del enfoque",
-      "focus": "Grupos musculares",
-      "exercisesCount": ${config.exercisesPerDay},
-      "estimatedTime": "60-75 min",
+      "dayName": "${trainingDays[0]} - Nombre",
+      "focus": "Grupos",
       "exercises": [
         {
-          "position": 1,
-          "name": "Nombre exacto",
+          "name": "Ejercicio",
           "sets": 4,
           "reps": "8-12",
           "rest": "90s",
-          "rpe": "7-8",
-          "rir": "2-3",
           "muscleGroup": "Grupo",
-          "category": "warmup|main|secondary|accessory|cooldown",
-          "tempo": "3-1-2-0",
-          "description": "Ejecución detallada",
-          "cues": ["Cue 1", "Cue 2"],
-          "tips": "Errores comunes",
-          "videoQuery": "nombre YouTube",
-          "purpose": "Por qué este ejercicio aquí",
+          "description": "Cómo hacer",
+          "tips": "Consejos",
+          "videoQuery": "nombre ejercicio",
           "alternatives": [
-            {"name": "Alternativa 1", "difficulty": "Igual|Más fácil|Más difícil", "reason": "Por qué funciona"},
-            {"name": "Alternativa 2", "difficulty": "Igual|Más fácil|Más difícil", "reason": "Por qué funciona"}
+            {"name": "Alt 1", "reason": "Por qué"},
+            {"name": "Alt 2", "reason": "Por qué"}
           ]
         }
       ]
-    },
+    }${trainingFrequency >= 2 ? `,
     {
-      "weekCycle": 1,
-      "dayName": "${trainingDays[1] || 'Día 2'} - NOMBRE ESPECÍFICO",
-      "dayDescription": "Descripción del enfoque",
-      "focus": "Grupos musculares",
-      "exercisesCount": ${config.exercisesPerDay},
-      "estimatedTime": "60-75 min",
+      "dayName": "${trainingDays[1] || 'Día 2'} - Nombre",
+      "focus": "Grupos",
       "exercises": [...]
-    },
+    }` : ''}${trainingFrequency >= 3 ? `,
     {
-      "weekCycle": 1,
-      "dayName": "${trainingDays[2] || 'Día 3'} - NOMBRE ESPECÍFICO",
-      "dayDescription": "Descripción del enfoque",
-      "focus": "Grupos musculares",
-      "exercisesCount": ${config.exercisesPerDay},
-      "estimatedTime": "60-75 min",
-      "exercises": [...]
-    }${trainingFrequency >= 4 ? `,
-    {
-      "weekCycle": 1,
-      "dayName": "${trainingDays[3] || 'Día 4'} - NOMBRE ESPECÍFICO",
-      "dayDescription": "Descripción del enfoque",
-      "focus": "Grupos musculares",
-      "exercisesCount": ${config.exercisesPerDay},
-      "estimatedTime": "60-75 min",
-      "exercises": [...]
-    }` : ''}${trainingFrequency >= 5 ? `,
-    {
-      "weekCycle": 1,
-      "dayName": "${trainingDays[4] || 'Día 5'} - NOMBRE ESPECÍFICO",
-      "dayDescription": "Descripción del enfoque",
-      "focus": "Grupos musculares",
-      "exercisesCount": ${config.exercisesPerDay},
-      "estimatedTime": "60-75 min",
-      "exercises": [...]
-    }` : ''}${trainingFrequency >= 6 ? `,
-    {
-      "weekCycle": 1,
-      "dayName": "${trainingDays[5] || 'Día 6'} - NOMBRE ESPECÍFICO",
-      "dayDescription": "Descripción del enfoque",
-      "focus": "Grupos musculares",
-      "exercisesCount": ${config.exercisesPerDay},
-      "estimatedTime": "60-75 min",
+      "dayName": "${trainingDays[2] || 'Día 3'} - Nombre",
+      "focus": "Grupos",
       "exercises": [...]
     }` : ''}
-    // GENERAR EXACTAMENTE ${trainingFrequency} DÍAS COMPLETOS CON TODOS LOS EJERCICIOS
-  ],
-  "medicalAnalysis": {
-    "severity": "None|Low|Medium|High",
-    "warningTitle": "Solo si hay lesiones",
-    "warningMessage": "Adaptaciones",
-    "modifications": ["Modificación 1"]
-  },
-  "progressionWeeks2To4": "Cómo progresan",
-  "deloadWeek": "Semana 4: reducir volumen",
-  "nutritionSync": "Recomendaciones nutricionales",
-  "recoveryTips": ["Tip 1", "Tip 2"]
-}
-
-RESTRICCIONES:
-- NO solo 5 ejercicios de 3 series (MÍNIMO ${config.exercisesPerDay})
-- VARIAR series y reps
-- CADA alternativa viable
-- **GENERAR EXACTAMENTE ${trainingFrequency} DÍAS COMPLETOS** en el array schedule
-- Distribuir grupos musculares equilibradamente en los ${trainingFrequency} días seleccionados: ${trainingDays.join(', ')}
-${muscularFocus ? `- PRIORIZAR ${muscularFocus} con mayor volumen y ejercicios variados` : ''}`;
+  ]
+}`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
