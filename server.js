@@ -5,7 +5,7 @@ const { Pool } = require('pg');
 const cors = require('cors');
 const compression = require('compression');
 const PDFDocument = require('pdfkit');
-const { GoogleGenAI, Type } = require('@google/genai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 require('dotenv').config();
 
 const app = express();
@@ -13,12 +13,12 @@ const PORT = process.env.PORT || 3001;
 
 // Inicializar Gemini AI
 const apiKey = process.env.GEMINI_API_KEY;
-let ai = null;
+let genAI = null;
 
 if (!apiKey) {
     console.warn('⚠️ GEMINI_API_KEY no está configurada. Las funciones de IA no estarán disponibles.');
 } else {
-    ai = new GoogleGenAI({ apiKey });
+    genAI = new GoogleGenerativeAI(apiKey);
     console.log('✅ Gemini AI inicializado correctamente');
 }
 
@@ -584,7 +584,7 @@ app.post('/api/generate-recipe-pdf', (req, res) => {
 
 // 8. GENERAR RUTINA DE ENTRENAMIENTO
 app.post('/api/generate-workout', async (req, res) => {
-    if (!ai) {
+    if (!genAI) {
         return res.status(503).json({ error: 'Servicio de IA no disponible. Configura GEMINI_API_KEY en variables de entorno.' });
     }
 
@@ -608,74 +608,32 @@ app.post('/api/generate-workout', async (req, res) => {
         GENERA 7 DÍAS (Lunes a Domingo). Si hay días de descanso, marca el focus como "Descanso" y deja exercises vacío o con ejercicios de recuperación.
         Cada ejercicio debe tener: name, sets (número), reps (string con rango), rest (tiempo), muscleGroup, category (warmup/main/cooldown), tempo, description, tips, videoQuery.
         
-        Genera JSON estructurado.`;
-
-        // Definir schema para la respuesta
-        const workoutDaySchema = {
-            type: Type.OBJECT,
-            properties: {
-                dayName: { type: Type.STRING },
-                focus: { type: Type.STRING },
-                exercises: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            name: { type: Type.STRING },
-                            sets: { type: Type.INTEGER },
-                            reps: { type: Type.STRING },
-                            rest: { type: Type.STRING },
-                            muscleGroup: { type: Type.STRING },
-                            category: { type: Type.STRING },
-                            tempo: { type: Type.STRING },
-                            description: { type: Type.STRING },
-                            tips: { type: Type.STRING },
-                            videoQuery: { type: Type.STRING }
-                        },
-                        required: ["name", "sets", "reps", "rest", "muscleGroup", "description", "tips", "videoQuery", "category"]
-                    }
-                }
-            },
-            required: ["dayName", "focus", "exercises"]
-        };
-
-        const workoutPlanSchema = {
-            type: Type.OBJECT,
-            properties: {
-                title: { type: Type.STRING },
-                description: { type: Type.STRING },
-                frequency: { type: Type.STRING },
-                estimatedDuration: { type: Type.STRING },
-                difficulty: { type: Type.STRING },
-                durationWeeks: { type: Type.INTEGER },
-                recommendations: { 
-                    type: Type.ARRAY, 
-                    items: { type: Type.STRING }
-                },
-                schedule: {
-                    type: Type.ARRAY,
-                    items: workoutDaySchema
-                }
-            },
-            required: ["title", "description", "frequency", "schedule", "estimatedDuration", "difficulty", "recommendations", "durationWeeks"]
-        };
+        Responde SOLO con JSON válido, sin texto adicional.`;
 
         // Llamar a Gemini
-        const response = await ai.models.generateContent({
-            model: "gemini-2.0-flash-exp",
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: workoutPlanSchema,
-                temperature: 0.8
-            }
-        });
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
 
-        if (!response.text) {
+        if (!text) {
             throw new Error('No se recibió respuesta de la IA');
         }
 
-        const workoutPlan = JSON.parse(response.text);
+        // Extraer JSON
+        let jsonText = text;
+        const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (jsonMatch) {
+            jsonText = jsonMatch[1];
+        } else {
+            const start = text.indexOf('{');
+            const end = text.lastIndexOf('}');
+            if (start > -1 && end > -1) {
+                jsonText = text.substring(start, end + 1);
+            }
+        }
+
+        const workoutPlan = JSON.parse(jsonText);
         const planId = require('crypto').randomUUID();
 
         // Guardar en la base de datos
@@ -715,7 +673,7 @@ app.post('/api/generate-workout', async (req, res) => {
 
 // 9. GENERAR PLAN DE DIETA
 app.post('/api/generate-diet', async (req, res) => {
-    if (!ai) {
+    if (!genAI) {
         return res.status(503).json({ error: 'Servicio de IA no disponible. Configura GEMINI_API_KEY en variables de entorno.' });
     }
 
@@ -748,72 +706,32 @@ app.post('/api/generate-diet', async (req, res) => {
         Usa ingredientes disponibles en México con CANTIDADES EXACTAS.
         Cada comida debe incluir: name, description, calories, protein, carbs, fats, ingredients (array con cantidades), instructions (array de pasos).
         
-        Genera JSON estructurado para 7 días.`;
-
-        // Schema para la respuesta
-        const mealSchema = {
-            type: Type.OBJECT,
-            properties: {
-                name: { type: Type.STRING },
-                description: { type: Type.STRING },
-                calories: { type: Type.INTEGER },
-                protein: { type: Type.INTEGER },
-                carbs: { type: Type.INTEGER },
-                fats: { type: Type.INTEGER },
-                ingredients: { 
-                    type: Type.ARRAY, 
-                    items: { type: Type.STRING }
-                },
-                instructions: { 
-                    type: Type.ARRAY, 
-                    items: { type: Type.STRING }
-                }
-            },
-            required: ["name", "description", "calories", "protein", "carbs", "fats", "ingredients", "instructions"]
-        };
-
-        const dailyMealsSchema = {
-            type: Type.OBJECT,
-            properties: {
-                day: { type: Type.STRING },
-                meals: {
-                    type: Type.ARRAY,
-                    items: mealSchema
-                }
-            },
-            required: ["day", "meals"]
-        };
-
-        const dietPlanSchema = {
-            type: Type.OBJECT,
-            properties: {
-                title: { type: Type.STRING },
-                description: { type: Type.STRING },
-                totalCaloriesPerDay: { type: Type.INTEGER },
-                weeklyPlan: {
-                    type: Type.ARRAY,
-                    items: dailyMealsSchema
-                }
-            },
-            required: ["title", "description", "totalCaloriesPerDay", "weeklyPlan"]
-        };
+        Responde SOLO con JSON válido para 7 días, sin texto adicional.`;
 
         // Llamar a Gemini
-        const response = await ai.models.generateContent({
-            model: "gemini-2.0-flash-exp",
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: dietPlanSchema,
-                temperature: 0.6
-            }
-        });
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
 
-        if (!response.text) {
+        if (!text) {
             throw new Error('No se recibió respuesta de la IA');
         }
 
-        const dietPlan = JSON.parse(response.text);
+        // Extraer JSON
+        let jsonText = text;
+        const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (jsonMatch) {
+            jsonText = jsonMatch[1];
+        } else {
+            const start = text.indexOf('{');
+            const end = text.lastIndexOf('}');
+            if (start > -1 && end > -1) {
+                jsonText = text.substring(start, end + 1);
+            }
+        }
+
+        const dietPlan = JSON.parse(jsonText);
         const planId = require('crypto').randomUUID();
 
         // Guardar en la base de datos
