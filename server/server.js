@@ -105,70 +105,14 @@ const connectionConfig = getConnectionConfig();
 // Detectar driver según esquema
 if (typeof connectionConfig === 'string' && connectionConfig.startsWith('postgres')) {
     usePostgres = true;
-    
     try {
-        // Parsear URL PostgreSQL manualmente sin usar pg-connection-string
-        // postgresql://user:password@host:port/database?options
-        const url = connectionConfig;
-        console.log('📡 URL a parsear:', url.substring(0, 50) + '...');
-        
-        // Extraer protocolo
-        const afterProto = url.replace('postgresql://', '');
-        console.log('📡 Después de protocolo:', afterProto.substring(0, 50) + '...');
-        
-        // Separar usuario:password de host
-        const atIndex = afterProto.indexOf('@');
-        if (atIndex === -1) throw new Error('No se encontró @ en la URL');
-        
-        const credentials = afterProto.substring(0, atIndex);
-        const rest = afterProto.substring(atIndex + 1);
-        
-        const colonIndex = credentials.indexOf(':');
-        if (colonIndex === -1) throw new Error('No se encontró : en credentials');
-        
-        const user = credentials.substring(0, colonIndex);
-        const password = credentials.substring(colonIndex + 1);
-        
-        console.log('📡 User:', user);
-        
-        // Separar host:port/database?options
-        const slashIndex = rest.indexOf('/');
-        if (slashIndex === -1) throw new Error('No se encontró / en rest');
-        
-        const hostPort = rest.substring(0, slashIndex);
-        const dbAndQuery = rest.substring(slashIndex + 1);
-        
-        const hostColonIndex = hostPort.indexOf(':');
-        const host = hostColonIndex === -1 ? hostPort : hostPort.substring(0, hostColonIndex);
-        const portStr = hostColonIndex === -1 ? '5432' : hostPort.substring(hostColonIndex + 1);
-        const port = parseInt(portStr) || 5432;
-        
-        // Separar database y query params
-        const questionIndex = dbAndQuery.indexOf('?');
-        const database = questionIndex === -1 ? dbAndQuery : dbAndQuery.substring(0, questionIndex);
-        
-        const pgConfig = {
-            user: user,
-            password: decodeURIComponent(password),
-            host: host,
-            port: port,
-            database: database,
-            ssl: { rejectUnauthorized: false }
-        };
-        
-        console.log('📡 PostgreSQL Config (parsed):', {
-            user: pgConfig.user,
-            host: pgConfig.host,
-            port: pgConfig.port,
-            database: pgConfig.database
-        });
-        
-        pgPool = new Pool(pgConfig);
-        
-        // Wrapper para uniformar interfaz
+        // Usar el connection string directamente para respetar query params (sslmode, uselibpqcompat, channel_binding)
+        console.log('📡 Inicializando Pool PostgreSQL con connectionString (parámetros respetados)');
+        pgPool = new Pool({ connectionString: connectionConfig, ssl: { rejectUnauthorized: false } });
+
+        // Wrapper para uniformar interfaz (convertir ? a $1, $2 ...)
         db = {
             query: (sql, params, cb) => {
-                // Convertir ? a $1, $2, ...
                 let idx = 0;
                 const pgSql = sql.replace(/\?/g, () => `$${++idx}`);
                 pgPool.query(pgSql, params)
@@ -176,7 +120,7 @@ if (typeof connectionConfig === 'string' && connectionConfig.startsWith('postgre
                     .catch(err => cb(err));
             }
         };
-        
+
         pgPool.connect()
             .then(client => {
                 client.release();
