@@ -50,6 +50,49 @@ function ensureSevenDaysMeals(entries) {
     return days.map(d => map.get(d) || { day: d, meals: [...fallbackMeals] });
 }
 
+// Función para limpiar y reparar JSON malformado de Gemini
+function cleanAndParseJSON(text) {
+    // Extraer JSON de bloque markdown si existe
+    let jsonText = text;
+    const markdownMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (markdownMatch) {
+        jsonText = markdownMatch[1].trim();
+    } else {
+        const firstBrace = jsonText.indexOf('{');
+        const lastBrace = jsonText.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace !== -1) {
+            jsonText = jsonText.substring(firstBrace, lastBrace + 1);
+        }
+    }
+    
+    // Intentar parsear directamente
+    try {
+        return JSON.parse(jsonText);
+    } catch (e) {
+        console.log('⚠️ JSON malformado, intentando reparar...');
+    }
+    
+    // Reparaciones comunes
+    let fixed = jsonText
+        // Eliminar comas finales antes de ] o }
+        .replace(/,\s*]/g, ']')
+        .replace(/,\s*}/g, '}')
+        // Eliminar caracteres de control
+        .replace(/[\x00-\x1F\x7F]/g, ' ')
+        // Arreglar comillas escapadas mal formadas
+        .replace(/\\'/g, "'")
+        // Eliminar trailing commas en arrays
+        .replace(/,(\s*[\]}])/g, '$1');
+    
+    try {
+        return JSON.parse(fixed);
+    } catch (e2) {
+        console.error('❌ No se pudo reparar el JSON:', e2.message);
+        console.error('JSON original (primeros 500 chars):', jsonText.substring(0, 500));
+        throw new Error(`Error parseando JSON: ${e2.message}`);
+    }
+}
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -822,36 +865,13 @@ GENERA AHORA LA RUTINA COMPLETA EN JSON:`;
 
         console.log('📥 Respuesta recibida, primeros 200 chars:', responseText.substring(0, 200));
 
-        // Extraer JSON - puede estar dentro de bloque markdown ```json...```
-        let jsonText = responseText;
-        
-        // Si está dentro de bloque markdown, extraerlo
-        const markdownMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)```/);
-        if (markdownMatch) {
-            console.log('🔍 Encontrado JSON dentro de bloque markdown');
-            jsonText = markdownMatch[1].trim();
-        } else {
-            // Si no, buscar directamente el JSON entre { y }
-            const firstBrace = jsonText.indexOf('{');
-            const lastBrace = jsonText.lastIndexOf('}');
-            
-            if (firstBrace === -1 || lastBrace === -1) {
-                console.error('❌ No se encontró JSON en la respuesta');
-                console.error('Respuesta completa:', response.text);
-                throw new Error('No se encontró JSON en la respuesta de Gemini');
-            }
-            jsonText = jsonText.substring(firstBrace, lastBrace + 1);
-        }
-        
-        console.log('🔍 JSON extraído:', jsonText.substring(0, 150));
-
+        // Usar función de limpieza y parsing robusta
         let workoutPlan;
         try {
-            workoutPlan = JSON.parse(jsonText);
+            workoutPlan = cleanAndParseJSON(responseText);
         } catch (parseErr) {
             console.error('❌ Error parseando JSON:', parseErr.message);
-            console.error('JSON intentado:', jsonText.substring(0, 300));
-            throw new Error(`Error parseando JSON: ${parseErr.message}`);
+            throw parseErr;
         }
 
         // Asegurar 7 días y volumen mínimo de ejercicios por día (6+) excepto descansos
@@ -974,32 +994,13 @@ RESPONDE SOLO CON JSON (sin markdown, explicaciones ni comillas extras):
 
         console.log('📥 Respuesta recibida');
 
-        // Extraer JSON - puede estar dentro de bloque markdown ```json...```
-        let jsonText = responseText;
-        
-        // Si está dentro de bloque markdown, extraerlo
-        const markdownMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)```/);
-        if (markdownMatch) {
-            console.log('🔍 Encontrado JSON dentro de bloque markdown');
-            jsonText = markdownMatch[1].trim();
-        } else {
-            // Si no, buscar directamente el JSON entre { y }
-            const firstBrace = jsonText.indexOf('{');
-            const lastBrace = jsonText.lastIndexOf('}');
-            
-            if (firstBrace === -1 || lastBrace === -1) {
-                console.error('❌ No se encontró JSON en la respuesta');
-                throw new Error('No se encontró JSON en la respuesta de Gemini');
-            }
-            jsonText = jsonText.substring(firstBrace, lastBrace + 1);
-        }
-
+        // Usar función de limpieza y parsing robusta
         let dietPlan;
         try {
-            dietPlan = JSON.parse(jsonText);
+            dietPlan = cleanAndParseJSON(responseText);
         } catch (parseErr) {
             console.error('❌ Error parseando JSON:', parseErr.message);
-            throw new Error(`Error parseando JSON: ${parseErr.message}`);
+            throw parseErr;
         }
 
         // Normalizar estructura para el frontend: asegurar schedule (alias de mealPlan) y 7 días con comidas
