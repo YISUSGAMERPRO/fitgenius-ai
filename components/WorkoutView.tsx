@@ -3,6 +3,7 @@ import { UserProfile, WorkoutPlan, Exercise, WorkoutLog, ExerciseSet, ExerciseAl
 import { api } from '../services/api';
 import { Play, Pause, Power, Trophy, Loader2, RefreshCw, ChevronDown, ChevronUp, Video, CheckCircle2, Circle, Dumbbell, Calendar, Info, AlertTriangle, ArrowRight, Settings2, Youtube, Shuffle, X, Timer, Volume2, VolumeX } from 'lucide-react';
 import { ConfirmModal } from './ConfirmModal';
+import { renderMetricsChart } from './MetricsChart';
 
 // Función para normalizar el plan de entrenamiento
 function normalizePlan(plan: any): WorkoutPlan | null {
@@ -57,6 +58,7 @@ interface Props {
   userId: string;
 }
 
+
 const WORKOUT_TYPES = [
     "Weider (Frecuencia 1)",
     "Torso / Pierna",
@@ -70,8 +72,144 @@ const WORKOUT_TYPES = [
     "Pilates",
     "Yoga Power",
     "Zumba / Baile",
-    "Kickboxing"
+    "Kickboxing",
+    "Fútbol (Rendimiento)",
+    "Vóley (Rendimiento)",
+    "Básquet (Rendimiento)",
+    "Tenis (Rendimiento)",
+    "Artes Marciales",
+    "Natación",
+    "Running / Atletismo"
 ];
+
+// Información detallada de cada tipo de rutina
+const WORKOUT_TYPE_INFO: Record<string, {
+    descripcion: string;
+    proposito: string;
+    frecuencia: string;
+    recomendaciones: string;
+}> = {
+        "Fútbol (Rendimiento)": {
+            descripcion: "Entrenamiento enfocado en mejorar la condición física, agilidad, fuerza explosiva y resistencia específica para fútbol.",
+            proposito: "Optimizar el rendimiento en cancha: velocidad, cambios de dirección, potencia de piernas y prevención de lesiones.",
+            frecuencia: "2-4 días/semana (además de entrenamientos técnicos)",
+            recomendaciones: "Incluye ejercicios pliométricos, sprints, core y trabajo de tren inferior. Prioriza la recuperación y el trabajo de movilidad."
+        },
+        "Vóley (Rendimiento)": {
+            descripcion: "Rutina para potenciar salto, fuerza de brazos, estabilidad y reflejos, adaptada a las demandas del vóley.",
+            proposito: "Mejorar salto vertical, potencia de golpeo, agilidad y prevención de lesiones en hombros y rodillas.",
+            frecuencia: "2-3 días/semana (además de entrenamientos técnicos)",
+            recomendaciones: "Enfócate en pliometría, fuerza de core, estabilidad de hombros y ejercicios de reacción."
+        },
+        "Básquet (Rendimiento)": {
+            descripcion: "Entrenamiento para mejorar salto, velocidad, fuerza y resistencia específica para el básquet.",
+            proposito: "Aumentar explosividad, agilidad lateral, fuerza de tren inferior y capacidad aeróbica/anaeróbica.",
+            frecuencia: "2-4 días/semana (además de entrenamientos técnicos)",
+            recomendaciones: "Incluye sprints, saltos, trabajo de core y ejercicios de fuerza funcional."
+        },
+        "Tenis (Rendimiento)": {
+            descripcion: "Rutina para mejorar velocidad de reacción, fuerza de tren superior/inferior y resistencia específica para tenis.",
+            proposito: "Optimizar desplazamientos laterales, potencia de golpeo y prevención de lesiones en codo/hombro.",
+            frecuencia: "2-3 días/semana (además de entrenamientos técnicos)",
+            recomendaciones: "Trabaja agilidad, fuerza de core, estabilidad de muñeca y ejercicios de reacción."
+        },
+        "Artes Marciales": {
+            descripcion: "Entrenamiento funcional para mejorar fuerza, explosividad, movilidad y resistencia aplicadas a deportes de combate.",
+            proposito: "Desarrollar potencia, velocidad, flexibilidad y resistencia muscular/cardiovascular.",
+            frecuencia: "2-4 días/semana (además de entrenamientos técnicos)",
+            recomendaciones: "Incluye circuitos, trabajo de core, pliometría y movilidad articular."
+        },
+        "Natación": {
+            descripcion: "Rutina complementaria para nadadores: fuerza, movilidad y resistencia fuera del agua.",
+            proposito: "Mejorar fuerza general, prevenir lesiones y potenciar la técnica de nado.",
+            frecuencia: "2-3 días/semana (además de entrenamientos en agua)",
+            recomendaciones: "Enfócate en core, hombros, movilidad y ejercicios funcionales."
+        },
+        "Running / Atletismo": {
+            descripcion: "Entrenamiento para corredores: fuerza, técnica, prevención de lesiones y mejora de rendimiento.",
+            proposito: "Aumentar eficiencia de carrera, fuerza de piernas y estabilidad, y reducir riesgo de lesiones.",
+            frecuencia: "2-3 días/semana (además de sesiones de carrera)",
+            recomendaciones: "Incluye fuerza de tren inferior, core, técnica de carrera y movilidad."
+        },
+    "Weider (Frecuencia 1)": {
+        descripcion: "Rutina clásica de culturismo donde se entrena un grupo muscular diferente cada día. Ideal para hipertrofia y desarrollo muscular avanzado.",
+        proposito: "Aumentar masa muscular y fuerza, permitiendo máxima recuperación entre grupos musculares.",
+        frecuencia: "5-6 días/semana (cada grupo 1 vez por semana)",
+        recomendaciones: "Recomendada para intermedios/avanzados. No ideal para principiantes. Prioriza la técnica y el descanso."
+    },
+    "Torso / Pierna": {
+        descripcion: "Divide la semana en entrenamientos de torso (pecho, espalda, hombros, brazos) y pierna (cuádriceps, glúteos, femorales).",
+        proposito: "Equilibrar el desarrollo de la parte superior e inferior del cuerpo.",
+        frecuencia: "4 días/semana (2 torso, 2 pierna)",
+        recomendaciones: "Ideal para intermedios. Permite buena recuperación y progresión."
+    },
+    "Full Body": {
+        descripcion: "Entrenamiento de todo el cuerpo en cada sesión. Muy eficiente para principiantes y personas con poco tiempo.",
+        proposito: "Mejorar fuerza general, coordinación y composición corporal.",
+        frecuencia: "2-4 días/semana",
+        recomendaciones: "Perfecta para principiantes. Prioriza ejercicios multiarticulares."
+    },
+    "Push / Pull / Legs": {
+        descripcion: "Divide los entrenamientos en empuje (pecho, hombro, tríceps), tirón (espalda, bíceps) y piernas.",
+        proposito: "Optimizar la recuperación y el volumen de entrenamiento por grupo muscular.",
+        frecuencia: "3-6 días/semana",
+        recomendaciones: "Versátil para todos los niveles. Ajusta el volumen según experiencia."
+    },
+    "Upper / Lower": {
+        descripcion: "Alterna entrenamientos de tren superior e inferior. Simplicidad y efectividad.",
+        proposito: "Desarrollar fuerza y masa muscular de forma equilibrada.",
+        frecuencia: "4 días/semana",
+        recomendaciones: "Ideal para intermedios. Permite progresión rápida."
+    },
+    "Arnold Split": {
+        descripcion: "Rutina avanzada inspirada en Arnold Schwarzenegger. Alta frecuencia y volumen.",
+        proposito: "Hipertrofia máxima y simetría muscular.",
+        frecuencia: "6 días/semana",
+        recomendaciones: "Solo para avanzados. Requiere experiencia y buena recuperación."
+    },
+    "Calistenia": {
+        descripcion: "Entrenamiento con el peso corporal. Mejora fuerza funcional, movilidad y control corporal.",
+        proposito: "Desarrollar fuerza, agilidad y control del cuerpo sin equipamiento.",
+        frecuencia: "3-6 días/semana",
+        recomendaciones: "Apto para todos. Progresar de ejercicios básicos a avanzados."
+    },
+    "Cardio Estricto": {
+        descripcion: "Rutinas centradas en ejercicios cardiovasculares tradicionales: correr, bici, elíptica, remo, etc.",
+        proposito: "Mejorar la salud cardiovascular, resistencia y quema de grasa.",
+        frecuencia: "2-6 días/semana",
+        recomendaciones: "Combina intensidades. Hidrátate y escucha a tu cuerpo."
+    },
+    "HIIT / Tabata": {
+        descripcion: "Entrenamiento interválico de alta intensidad. Corto, intenso y efectivo para quemar grasa.",
+        proposito: "Aumentar la capacidad cardiovascular y acelerar el metabolismo.",
+        frecuencia: "2-4 días/semana",
+        recomendaciones: "No recomendado para principiantes absolutos. Calienta bien antes."
+    },
+    "Pilates": {
+        descripcion: "Mejora la flexibilidad, fuerza del core y postura mediante ejercicios controlados.",
+        proposito: "Fortalecer el core, mejorar postura y flexibilidad.",
+        frecuencia: "2-5 días/semana",
+        recomendaciones: "Ideal para todos los niveles. Enfócate en la técnica."
+    },
+    "Yoga Power": {
+        descripcion: "Estilo de yoga dinámico que combina fuerza, flexibilidad y equilibrio.",
+        proposito: "Mejorar flexibilidad, fuerza y reducir el estrés.",
+        frecuencia: "2-6 días/semana",
+        recomendaciones: "Apto para todos. Escucha tu cuerpo y progresa gradualmente."
+    },
+    "Zumba / Baile": {
+        descripcion: "Entrenamiento cardiovascular a través del baile. Divertido y social.",
+        proposito: "Mejorar resistencia, coordinación y quemar calorías.",
+        frecuencia: "2-5 días/semana",
+        recomendaciones: "Ideal para todos. Mantente hidratado y disfruta la música."
+    },
+    "Kickboxing": {
+        descripcion: "Entrenamiento de artes marciales que combina golpes y patadas. Mejora fuerza, agilidad y cardio.",
+        proposito: "Desarrollar fuerza, coordinación y resistencia cardiovascular.",
+        frecuencia: "2-4 días/semana",
+        recomendaciones: "Aprende la técnica básica antes de aumentar la intensidad."
+    }
+};
 
 const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -98,9 +236,110 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
     const [genDuration, setGenDuration] = useState('expert'); // 'expert' or weeks
     const [genFrequency, setGenFrequency] = useState(3); // Días por semana
     const [genSelectedDays, setGenSelectedDays] = useState<string[]>(['Lunes', 'Miércoles', 'Viernes']); // Días específicos
+    // Nuevo: Nivel de conocimiento
+    const [genKnowledgeLevel, setGenKnowledgeLevel] = useState('intermedio'); // 'principiante', 'intermedio', 'avanzado'
 
     // Session State
     const [isSessionActive, setIsSessionActive] = useState(false);
+
+    // Métricas de rendimiento
+    const [metrics, setMetrics] = useState({
+        adherence: 0, // % de días completados
+        consistency: 0, // % de semanas con al menos X días completados
+        totalCompleted: 0, // Total de días completados
+        totalSessions: 0, // Total de sesiones iniciadas
+        improvement: 0, // % de mejora en repeticiones/sets
+        streak: 0, // Días consecutivos entrenando
+        avgSessionTime: 0, // Tiempo promedio por sesión (min)
+        avgExerciseTime: 0, // Tiempo promedio por ejercicio (min)
+        avgSetTime: 0, // Tiempo promedio por set (seg)
+        restHistory: [] as number[] // Historial de descansos usados (seg)
+    });
+
+    // Calcular métricas cada vez que completedDays o plan cambian
+    useEffect(() => {
+        if (!plan || !plan.schedule) return;
+        const totalDays = plan.schedule.length;
+        const completed = Object.values(completedDays).filter(Boolean).length;
+        const adherence = totalDays > 0 ? Math.round((completed / totalDays) * 100) : 0;
+
+        // Consistencia: semanas con al menos 3 días completados
+        const weeks = Math.ceil(totalDays / 7);
+        let consistency = 0;
+        for (let w = 0; w < weeks; w++) {
+            const weekDays = plan.schedule.slice(w * 7, (w + 1) * 7);
+            const weekCompleted = weekDays.filter((_, idx) => completedDays[`${plan.id}-${w * 7 + idx}`]).length;
+            if (weekCompleted >= 3) consistency++;
+        }
+        consistency = weeks > 0 ? Math.round((consistency / weeks) * 100) : 0;
+
+        // Racha (streak): días consecutivos entrenando
+        let streak = 0, maxStreak = 0;
+        for (let i = 0; i < totalDays; i++) {
+            if (completedDays[`${plan.id}-${i}`]) {
+                streak++;
+                if (streak > maxStreak) maxStreak = streak;
+            } else {
+                streak = 0;
+            }
+        }
+
+        // Mejora: comparar sets/reps de los logs (simplificado)
+        let improvement = 0;
+        let avgSessionTime = 0, avgExerciseTime = 0, avgSetTime = 0, restHistory: number[] = [];
+        const historyStr = localStorage.getItem(`fitgenius_history_${userId}`);
+        if (historyStr) {
+            try {
+                const history = JSON.parse(historyStr);
+                if (history.length >= 2) {
+                    const first = history[0];
+                    const last = history[history.length - 1];
+                    const firstReps = first.exercisesCompleted || 0;
+                    const lastReps = last.exercisesCompleted || 0;
+                    improvement = firstReps > 0 ? Math.round(((lastReps - firstReps) / firstReps) * 100) : 0;
+                }
+                // Tiempo promedio por sesión
+                const totalSessionTime = history.reduce((acc: number, log: any) => acc + (log.durationSeconds || 0), 0);
+                avgSessionTime = history.length > 0 ? Math.round(totalSessionTime / history.length / 60) : 0;
+                // Tiempo promedio por ejercicio
+                let totalExercises = 0;
+                history.forEach((log: any) => { totalExercises += log.totalExercises || 0; });
+                avgExerciseTime = totalExercises > 0 ? Math.round(totalSessionTime / totalExercises / 60) : 0;
+                // Tiempo promedio por set
+                let totalSets = 0;
+                history.forEach((log: any) => { totalSets += log.exercisesCompleted || 0; });
+                avgSetTime = totalSets > 0 ? Math.round(totalSessionTime / totalSets) : 0;
+                // Historial de descansos
+                history.forEach((log: any) => {
+                    if (log.restTimes && Array.isArray(log.restTimes)) {
+                        restHistory = restHistory.concat(log.restTimes);
+                    }
+                });
+            } catch {}
+        }
+
+        setMetrics({
+            adherence,
+            consistency,
+            totalCompleted: completed,
+            totalSessions: completed, // simplificado
+            improvement,
+            streak: maxStreak,
+            avgSessionTime,
+            avgExerciseTime,
+            avgSetTime,
+            restHistory
+        });
+        // Renderizar gráfico de adherencia y mejora
+        setTimeout(() => {
+            renderMetricsChart('metricsChart', {
+                labels: ['Adherencia', 'Mejora'],
+                data: [adherence, improvement],
+                label: 'Progreso (%)',
+                color: 'rgba(59,130,246,0.7)'
+            });
+        }, 300);
+    }, [completedDays, plan, userId]);
     const [sessionSeconds, setSessionSeconds] = useState(0);
     const [isSessionPaused, setIsSessionPaused] = useState(false);
     const [completedSets, setCompletedSets] = useState<Record<string, boolean>>({}); // Key: "exerciseIdx-setIdx"
@@ -303,7 +542,8 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
                 frequency: genFrequency,
                 selectedDays: genSelectedDays,
                 focus: genFocus || undefined,
-                duration: genDuration !== 'expert' ? parseInt(genDuration) : undefined
+                duration: genDuration !== 'expert' ? parseInt(genDuration) : undefined,
+                knowledgeLevel: genKnowledgeLevel
             });
             clearTimeout(timeoutId);
             
@@ -617,16 +857,76 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
                 </div>
 
                 <div className="space-y-5">
+
                     <div>
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Tipo de Entrenamiento</label>
-                        <select 
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Nivel de Conocimiento</label>
+                        <select
                             className="w-full mt-2 bg-slate-800 border border-slate-700 rounded-xl p-3 text-white outline-none focus:border-brand-500"
-                            value={genType}
-                            onChange={e => setGenType(e.target.value)}
+                            value={genKnowledgeLevel}
+                            onChange={e => setGenKnowledgeLevel(e.target.value)}
                         >
-                            {WORKOUT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                            <option value="principiante">Principiante</option>
+                            <option value="intermedio">Intermedio</option>
+                            <option value="avanzado">Avanzado</option>
                         </select>
+                        <p className="text-xs text-slate-500 mt-2">Selecciona tu experiencia entrenando. Esto personalizará la dificultad y progresión.</p>
                     </div>
+
+
+                                        <div>
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Tipo de Entrenamiento</label>
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                                    {WORKOUT_TYPES.map(t => (
+                                                        <button
+                                                            key={t}
+                                                            type="button"
+                                                            onClick={() => setGenType(t)}
+                                                            className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all shadow-sm h-full min-h-[90px] text-center group
+                                                                ${genType === t
+                                                                    ? 'bg-brand-600/90 border-brand-500 text-white shadow-lg shadow-brand-500/20 scale-[1.03]'
+                                                                    : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-brand-500/10 hover:border-brand-400'}
+                                                            `}
+                                                            style={{ minHeight: 90 }}
+                                                        >
+                                                            <span className="mb-2">
+                                                                {/* Iconos simples por tipo, puedes personalizar más */}
+                                                                {t.includes('Fútbol') && <span role="img" aria-label="futbol">⚽</span>}
+                                                                {t.includes('Vóley') && <span role="img" aria-label="voley">🏐</span>}
+                                                                {t.includes('Básquet') && <span role="img" aria-label="basket">🏀</span>}
+                                                                {t.includes('Tenis') && <span role="img" aria-label="tenis">🎾</span>}
+                                                                {t.includes('Artes Marciales') && <span role="img" aria-label="karate">🥋</span>}
+                                                                {t.includes('Natación') && <span role="img" aria-label="natacion">🏊‍♂️</span>}
+                                                                {t.includes('Running') && <span role="img" aria-label="running">🏃‍♂️</span>}
+                                                                {t.includes('Calistenia') && <span role="img" aria-label="calistenia">🤸‍♂️</span>}
+                                                                {t.includes('Cardio') && <span role="img" aria-label="cardio">❤️</span>}
+                                                                {t.includes('HIIT') && <span role="img" aria-label="hiit">⚡</span>}
+                                                                {t.includes('Pilates') && <span role="img" aria-label="pilates">🧘‍♀️</span>}
+                                                                {t.includes('Yoga') && <span role="img" aria-label="yoga">🧘</span>}
+                                                                {t.includes('Zumba') && <span role="img" aria-label="zumba">💃</span>}
+                                                                {t.includes('Kickboxing') && <span role="img" aria-label="kickboxing">🥊</span>}
+                                                                {t.includes('Weider') && <span role="img" aria-label="weider">🏋️‍♂️</span>}
+                                                                {t.includes('Torso') && <span role="img" aria-label="torso">💪</span>}
+                                                                {t.includes('Full Body') && <span role="img" aria-label="fullbody">🦵</span>}
+                                                                {t.includes('Push') && <span role="img" aria-label="push">➡️</span>}
+                                                                {t.includes('Upper') && <span role="img" aria-label="upper">⬆️</span>}
+                                                                {t.includes('Arnold') && <span role="img" aria-label="arnold">🏆</span>}
+                                                            </span>
+                                                            <span className={`font-bold text-sm ${genType === t ? 'text-white' : 'text-slate-200 group-hover:text-brand-400'}`}>{t}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                        </div>
+
+                    {/* Info del tipo de rutina seleccionado */}
+                    {WORKOUT_TYPE_INFO[genType] && (
+                      <div className="my-4 p-4 rounded-xl bg-slate-900/80 border border-brand-500/30 animate-fadeIn">
+                        <h4 className="text-lg font-bold text-brand-400 mb-1">{genType}</h4>
+                        <p className="text-slate-300 mb-2"><span className="font-semibold text-slate-400">Descripción:</span> {WORKOUT_TYPE_INFO[genType].descripcion}</p>
+                        <p className="text-slate-300 mb-2"><span className="font-semibold text-slate-400">Propósito:</span> {WORKOUT_TYPE_INFO[genType].proposito}</p>
+                        <p className="text-slate-300 mb-2"><span className="font-semibold text-slate-400">Frecuencia Recomendada:</span> {WORKOUT_TYPE_INFO[genType].frecuencia}</p>
+                        <p className="text-slate-300"><span className="font-semibold text-slate-400">Recomendaciones:</span> {WORKOUT_TYPE_INFO[genType].recomendaciones}</p>
+                      </div>
+                    )}
 
                     <div>
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Enfoque Muscular (Opcional)</label>
@@ -882,7 +1182,7 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
                 </div>
              )}
 
-             {/* Header Section */}
+             {/* Header Section + Métricas */}
              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                  <div>
                      <h2 className="text-2xl font-bold text-white flex items-center gap-2">
@@ -894,11 +1194,55 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
                          )}
                      </h2>
                      <p className="text-slate-400 text-sm max-w-2xl">{plan.description}</p>
+
+                     {/* Métricas de rendimiento */}
+                     <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                         <div className="bg-slate-900/80 rounded-xl p-3 border border-brand-500/20 text-center">
+                             <div className="text-xs text-slate-400 font-bold uppercase">Adherencia</div>
+                             <div className="text-2xl font-black text-brand-400">{metrics.adherence}%</div>
+                             <div className="text-xs text-slate-500">Días completados</div>
+                         </div>
+                         <div className="bg-slate-900/80 rounded-xl p-3 border border-green-500/20 text-center">
+                             <div className="text-xs text-slate-400 font-bold uppercase">Consistencia</div>
+                             <div className="text-2xl font-black text-green-400">{metrics.consistency}%</div>
+                             <div className="text-xs text-slate-500">Semanas cumplidas</div>
+                         </div>
+                         <div className="bg-slate-900/80 rounded-xl p-3 border border-yellow-500/20 text-center">
+                             <div className="text-xs text-slate-400 font-bold uppercase">Mejora</div>
+                             <div className="text-2xl font-black text-yellow-400">{metrics.improvement}%</div>
+                             <div className="text-xs text-slate-500">Progreso en reps/sets</div>
+                         </div>
+                         <div className="bg-slate-900/80 rounded-xl p-3 border border-blue-500/20 text-center">
+                             <div className="text-xs text-slate-400 font-bold uppercase">Racha</div>
+                             <div className="text-2xl font-black text-blue-400">{metrics.streak}</div>
+                             <div className="text-xs text-slate-500">Días seguidos</div>
+                         </div>
+                         <div className="bg-slate-900/80 rounded-xl p-3 border border-purple-500/20 text-center">
+                             <div className="text-xs text-slate-400 font-bold uppercase">Tiempo sesión</div>
+                             <div className="text-2xl font-black text-purple-400">{metrics.avgSessionTime}m</div>
+                             <div className="text-xs text-slate-500">Promedio por sesión</div>
+                         </div>
+                         <div className="bg-slate-900/80 rounded-xl p-3 border border-cyan-500/20 text-center">
+                             <div className="text-xs text-slate-400 font-bold uppercase">Tiempo ejercicio</div>
+                             <div className="text-2xl font-black text-cyan-400">{metrics.avgExerciseTime}m</div>
+                             <div className="text-xs text-slate-500">Promedio por ejercicio</div>
+                         </div>
+                         <div className="bg-slate-900/80 rounded-xl p-3 border border-pink-500/20 text-center">
+                             <div className="text-xs text-slate-400 font-bold uppercase">Tiempo por set</div>
+                             <div className="text-2xl font-black text-pink-400">{metrics.avgSetTime}s</div>
+                             <div className="text-xs text-slate-500">Promedio por set</div>
+                         </div>
+                         <div className="bg-slate-900/80 rounded-xl p-3 border border-orange-500/20 text-center">
+                             <div className="text-xs text-slate-400 font-bold uppercase">Descansos usados</div>
+                             <div className="text-2xl font-black text-orange-400">{metrics.restHistory.length}</div>
+                             <div className="text-xs text-slate-500">Historial de descansos</div>
+                         </div>
+                     </div>
                  </div>
                  <div className="flex gap-2">
                      <button 
                         onClick={() => setShowGenerator(true)}
-                        className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors border border-slate-700"
+                        className="p-2 bg-gradient-to-br from-brand-500 to-brand-400 hover:from-brand-400 hover:to-brand-500 rounded-lg text-white font-bold shadow-lg border-2 border-brand-500/30 transition-all scale-105 hover:scale-110"
                         title="Regenerar Rutina"
                      >
                          <Settings2 className="w-5 h-5" />
@@ -1012,10 +1356,10 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
                     {!isSessionActive && (
                         <button 
                             onClick={startSession}
-                            className="w-full py-4 bg-brand-600 hover:bg-brand-500 text-white rounded-2xl font-bold text-lg shadow-xl shadow-brand-500/20 flex items-center justify-center gap-3 transition-transform hover:scale-[1.01] animate-bounce-in"
+                            className="w-full py-5 bg-gradient-to-br from-green-500 to-brand-400 hover:from-green-400 hover:to-brand-500 text-white rounded-2xl font-extrabold text-xl shadow-2xl shadow-green-500/30 flex items-center justify-center gap-4 transition-transform hover:scale-105 active:scale-95 border-2 border-green-400/30 animate-bounce-in"
                         >
-                            <Play className="w-6 h-6 fill-current" />
-                            INICIAR RUTINA
+                            <Play className="w-7 h-7 fill-current animate-pulse" />
+                            ¡Comenzar Rutina!
                         </button>
                     )}
 
@@ -1038,14 +1382,205 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
                     {/* FIXED FINISH BUTTON (Updated to prevent obstruction) */}
                     {isSessionActive && (
                         <div className="fixed bottom-24 left-4 right-4 md:bottom-8 md:right-8 md:left-auto md:w-auto z-40 animate-slideUp">
-                            <button 
-                                type="button"
-                                onClick={handleFinishClick}
-                                className="w-full md:w-auto px-8 py-4 bg-red-600 hover:bg-red-500 text-white rounded-2xl font-bold text-lg shadow-2xl shadow-red-900/50 flex items-center justify-center gap-3 transition-transform hover:scale-[1.02] cursor-pointer active:scale-95 border-2 border-red-400/20 backdrop-blur-sm"
-                            >
-                                <Trophy className="w-6 h-6 fill-current" />
-                                Finalizar Entrenamiento
-                            </button>
+                            <div className="flex gap-4">
+                                <button 
+                                    type="button"
+                                    onClick={handleSuspendSession}
+                                    className="w-full md:w-auto px-6 py-4 bg-yellow-500 hover:bg-yellow-400 text-slate-900 rounded-2xl font-bold text-lg shadow-xl shadow-yellow-500/30 flex items-center justify-center gap-2 transition-transform hover:scale-105 active:scale-95 border-2 border-yellow-400/20 backdrop-blur-sm"
+                                >
+                                    <Pause className="w-6 h-6 fill-current" />
+                                    Pausar Rutina
+                                </button>
+                                <button 
+                                    type="button"
+                                    onClick={handleFinishClick}
+                                    className="w-full md:w-auto px-8 py-4 bg-gradient-to-br from-red-600 to-pink-500 hover:from-red-500 hover:to-pink-400 text-white rounded-2xl font-extrabold text-xl shadow-2xl shadow-red-900/50 flex items-center justify-center gap-3 transition-transform hover:scale-105 active:scale-95 border-2 border-red-400/30 backdrop-blur-sm"
+                                >
+                                    <Trophy className="w-7 h-7 fill-current animate-pulse" />
+                                    Terminar Rutina
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                  </>
+              ) : (
+                  <div className="bg-slate-800/50 rounded-3xl border border-slate-800 p-12 text-center">
+                      <p className="text-slate-400 text-lg">Día de Descanso / Recuperación</p>
+                      <p className="text-slate-600 text-sm">Aprovecha para realizar estiramientos suaves o caminar.</p>
+                  </div>
+              )}
+
+              {/* Métricas de rendimiento */}
+              <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  <div className="bg-slate-900/80 rounded-xl p-3 border border-brand-500/20 text-center">
+                      <div className="text-xs text-slate-400 font-bold uppercase">Adherencia</div>
+                      <div className="text-2xl font-black text-brand-400">{metrics.adherence}%</div>
+                      <div className="text-xs text-slate-500">Días completados</div>
+                  </div>
+                  <div className="bg-slate-900/80 rounded-xl p-3 border border-green-500/20 text-center">
+                      <div className="text-xs text-slate-400 font-bold uppercase">Consistencia</div>
+                      <div className="text-2xl font-black text-green-400">{metrics.consistency}%</div>
+                      <div className="text-xs text-slate-500">Semanas cumplidas</div>
+                  </div>
+                  <div className="bg-slate-900/80 rounded-xl p-3 border border-yellow-500/20 text-center">
+                      <div className="text-xs text-slate-400 font-bold uppercase">Mejora</div>
+                      <div className="text-2xl font-black text-yellow-400">{metrics.improvement}%</div>
+                      <div className="text-xs text-slate-500">Progreso en reps/sets</div>
+                  </div>
+                  <div className="bg-slate-900/80 rounded-xl p-3 border border-blue-500/20 text-center">
+                      <div className="text-xs text-slate-400 font-bold uppercase">Racha</div>
+                      <div className="text-2xl font-black text-blue-400">{metrics.streak}</div>
+                      <div className="text-xs text-slate-500">Días seguidos</div>
+                  </div>
+                  <div className="bg-slate-900/80 rounded-xl p-3 border border-purple-500/20 text-center">
+                      <div className="text-xs text-slate-400 font-bold uppercase">Tiempo sesión</div>
+                      <div className="text-2xl font-black text-purple-400">{metrics.avgSessionTime}m</div>
+                      <div className="text-xs text-slate-500">Promedio por sesión</div>
+                  </div>
+                  <div className="bg-slate-900/80 rounded-xl p-3 border border-cyan-500/20 text-center">
+                      <div className="text-xs text-slate-400 font-bold uppercase">Tiempo ejercicio</div>
+                      <div className="text-2xl font-black text-cyan-400">{metrics.avgExerciseTime}m</div>
+                      <div className="text-xs text-slate-500">Promedio por ejercicio</div>
+                  </div>
+                  <div className="bg-slate-900/80 rounded-xl p-3 border border-pink-500/20 text-center">
+                      <div className="text-xs text-slate-400 font-bold uppercase">Tiempo por set</div>
+                      <div className="text-2xl font-black text-pink-400">{metrics.avgSetTime}s</div>
+                      <div className="text-xs text-slate-500">Promedio por set</div>
+                  </div>
+                  <div className="bg-slate-900/80 rounded-xl p-3 border border-orange-500/20 text-center">
+                      <div className="text-xs text-slate-400 font-bold uppercase">Descansos usados</div>
+                      <div className="text-2xl font-black text-orange-400">{metrics.restHistory.length}</div>
+                      <div className="text-xs text-slate-500">Historial de descansos</div>
+                  </div>
+              </div>
+              {/* Gráfico de métricas */}
+              <div className="mt-8">
+                  <h4 className="text-lg font-bold text-white mb-2">Gráfico de Progreso</h4>
+                  <canvas id="metricsChart" height="120"></canvas>
+              </div>
+
+             {/* Active Session Header Sticky */}
+             {isSessionActive && (
+                  <div className="sticky top-0 z-30 animate-slideUp">
+                      <div className="bg-slate-900/90 backdrop-blur-xl p-4 rounded-2xl border border-brand-500/30 flex items-center justify-between shadow-2xl">
+                          <div className="flex items-center gap-4">
+                              <div className="flex flex-col">
+                                  <div className="text-[10px] text-brand-300 font-bold uppercase tracking-widest flex items-center gap-1.5 mb-0.5">
+                                      <div className={`w-2 h-2 rounded-full ${isSessionPaused ? 'bg-yellow-500' : 'bg-red-500 animate-pulse'}`}></div>
+                                      {isSessionPaused ? 'En Pausa' : 'Entrenando'}
+                                  </div>
+                                  <div className="text-2xl font-mono font-black text-white tabular-nums leading-none">
+                                      {formatTime(sessionSeconds)}
+                                  </div>
+                              </div>
+                              
+                              <div className="h-8 w-px bg-slate-700 mx-2 hidden sm:block"></div>
+                              
+                              <div className="hidden sm:block">
+                                  <h3 className="text-sm font-bold text-white truncate max-w-[150px]">{currentDay.dayName}</h3>
+                                  <span className="text-xs text-slate-400">Progreso: {Object.keys(completedSets).length} series</span>
+                              </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                              {/* Rest Timer Quick Settings */}
+                              <div className="hidden sm:flex items-center gap-1 mr-2 bg-slate-800/50 rounded-xl px-2 py-1 border border-slate-700">
+                                  <Timer className="w-4 h-4 text-brand-400" />
+                                  <select
+                                      value={restTimeSeconds}
+                                      onChange={(e) => updateRestTime(parseInt(e.target.value))}
+                                      className="bg-transparent text-xs text-slate-300 font-mono border-none outline-none cursor-pointer"
+                                      title="Tiempo de descanso entre series"
+                                  >
+                                      {REST_TIME_OPTIONS.map(time => (
+                                          <option key={time} value={time} className="bg-slate-800">
+                                              {time < 60 ? `${time}s` : time === 60 ? '1m' : time === 90 ? '1m30s' : time === 120 ? '2m' : '3m'}
+                                          </option>
+                                      ))}
+                                  </select>
+                              </div>
+
+                              <button 
+                                  onClick={handleSuspendSession}
+                                  className="p-3 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition-colors"
+                                  title="Guardar y Salir (Suspender)"
+                              >
+                                  <Power className="w-5 h-5" />
+                              </button>
+
+                              <button 
+                                  onClick={() => setIsSessionPaused(!isSessionPaused)}
+                                  className={`p-3 rounded-xl border transition-all ${
+                                      isSessionPaused 
+                                          ? 'bg-green-600 text-white border-green-500 shadow-lg shadow-green-500/20' 
+                                          : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                                  }`}
+                              >
+                                  {isSessionPaused ? <Play className="w-5 h-5 fill-current" /> : <Pause className="w-5 h-5 fill-current" />}
+                              </button>
+                          </div>
+                      </div>
+                  </div>
+              )}
+
+              {!isSessionActive && (
+                  <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                          {currentDay.dayName} <span className="text-slate-500 text-sm font-normal">({currentDay.focus})</span>
+                      </h3>
+                  </div>
+              )}
+              
+              {currentDay.exercises && currentDay.exercises.length > 0 ? (
+                  <>
+                    {/* START BUTTON (Plan View Only) */}
+                    {!isSessionActive && (
+                        <button 
+                            onClick={startSession}
+                            className="w-full py-5 bg-gradient-to-br from-green-500 to-brand-400 hover:from-green-400 hover:to-brand-500 text-white rounded-2xl font-extrabold text-xl shadow-2xl shadow-green-500/30 flex items-center justify-center gap-4 transition-transform hover:scale-105 active:scale-95 border-2 border-green-400/30 animate-bounce-in"
+                        >
+                            <Play className="w-7 h-7 fill-current animate-pulse" />
+                            ¡Comenzar Rutina!
+                        </button>
+                    )}
+
+                    <div className={`grid grid-cols-1 gap-4 ${isSessionActive ? 'pb-48' : ''}`}>
+                        {(currentDay.exercises || []).map((ex, idx) => (
+                            <ExerciseCard 
+                                key={`${selectedDayIndex}-${idx}`} 
+                                exercise={ex} 
+                                onSwap={() => handleSwapExercise(selectedDayIndex, idx)}
+                                isRegenerating={regeneratingExerciseId === `${selectedDayIndex}-${idx}`}
+                                getYoutubeLink={getYoutubeLink}
+                                isActiveMode={isSessionActive}
+                                completedSets={completedSets}
+                                onToggleSet={(setIdx) => toggleSet(idx, setIdx)}
+                                exerciseIndex={idx}
+                            />
+                        ))}
+                    </div>
+                    
+                    {/* FIXED FINISH BUTTON (Updated to prevent obstruction) */}
+                    {isSessionActive && (
+                        <div className="fixed bottom-24 left-4 right-4 md:bottom-8 md:right-8 md:left-auto md:w-auto z-40 animate-slideUp">
+                            <div className="flex gap-4">
+                                <button 
+                                    type="button"
+                                    onClick={handleSuspendSession}
+                                    className="w-full md:w-auto px-6 py-4 bg-yellow-500 hover:bg-yellow-400 text-slate-900 rounded-2xl font-bold text-lg shadow-xl shadow-yellow-500/30 flex items-center justify-center gap-2 transition-transform hover:scale-105 active:scale-95 border-2 border-yellow-400/20 backdrop-blur-sm"
+                                >
+                                    <Pause className="w-6 h-6 fill-current" />
+                                    Pausar Rutina
+                                </button>
+                                <button 
+                                    type="button"
+                                    onClick={handleFinishClick}
+                                    className="w-full md:w-auto px-8 py-4 bg-gradient-to-br from-red-600 to-pink-500 hover:from-red-500 hover:to-pink-400 text-white rounded-2xl font-extrabold text-xl shadow-2xl shadow-red-900/50 flex items-center justify-center gap-3 transition-transform hover:scale-105 active:scale-95 border-2 border-red-400/30 backdrop-blur-sm"
+                                >
+                                    <Trophy className="w-7 h-7 fill-current animate-pulse" />
+                                    Terminar Rutina
+                                </button>
+                            </div>
                         </div>
                     )}
                   </>
@@ -1098,7 +1633,7 @@ const ExerciseCard: React.FC<{
                     {!isActiveMode && (
                         <button 
                             onClick={onSwap}
-                            className={`p-2 rounded-lg transition-colors flex items-center gap-1 ${
+                            className={`p-2 rounded-lg transition-colores flex items-center gap-1 ${
                                 hasAlternatives 
                                     ? 'bg-brand-500/10 text-brand-400 hover:bg-brand-500/20' 
                                     : 'hover:bg-slate-800 text-slate-500 hover:text-brand-400'

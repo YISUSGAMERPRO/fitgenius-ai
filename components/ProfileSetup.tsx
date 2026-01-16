@@ -47,21 +47,24 @@ const ProfileSetup: React.FC<Props> = ({ onComplete, initialData, onCancel }) =>
     setError(null);
 
     if (step === 1) {
-        if (!formData.name || !formData.age || !formData.height || !formData.weight) {
-            setError("Por favor completa todos los campos personales.");
-            return;
-        }
-        setStep(step + 1);
+      if (!formData.name || !formData.age || !formData.height || !formData.weight) {
+        setError("Por favor completa todos los campos personales.");
+        return;
+      }
+      setStep(step + 1);
     } else if (step === 2) {
-        setStep(step + 1);
+      setStep(step + 1);
     } else if (step === 3) {
-        // Equipment Validation
-        if (!formData.equipment || formData.equipment.length === 0) {
-            setError("Debes seleccionar al menos una opción de equipamiento. Selecciona 'Peso Corporal' si no tienes equipo.");
-            return;
-        }
-        
-        onComplete(formData as UserProfile);
+      // Equipment Validation
+      if (!formData.equipment || formData.equipment.length === 0) {
+        setError("Debes seleccionar al menos una opción de equipamiento. Selecciona 'Peso Corporal' si no tienes equipo.");
+        return;
+      }
+      // Si lesiones está vacío, poner 'Ninguna'
+      if (!formData.injuries || formData.injuries.trim() === "") {
+        formData.injuries = "Ninguna";
+      }
+      onComplete(formData as UserProfile);
     }
   };
 

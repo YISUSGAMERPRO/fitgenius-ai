@@ -234,7 +234,7 @@ const GymAdminView: React.FC<Props> = ({ onBack }) => {
                                         placeholder="Nombre Completo" 
                                         className="bg-slate-800 border border-slate-700 p-3 rounded-xl text-white outline-none" 
                                         value={newMember.name} 
-                                        onChange={e => setNewMember({...newMember, name: e.target.value})} 
+                                        onChange={e => setNewMember({...newMember, name: e.target.value.replace(/^\s+/, '')})} 
                                     />
                                     <select 
                                         className="bg-slate-800 border border-slate-700 p-3 rounded-xl text-white outline-none" 
@@ -250,6 +250,7 @@ const GymAdminView: React.FC<Props> = ({ onBack }) => {
                                         placeholder="Monto Pagado ($)" 
                                         className="bg-slate-800 border border-slate-700 p-3 rounded-xl text-white outline-none" 
                                         value={newMember.lastPaymentAmount} 
+                                        min={0}
                                         onChange={e => setNewMember({...newMember, lastPaymentAmount: Number(e.target.value)})} 
                                     />
                                 </div>

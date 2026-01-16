@@ -220,7 +220,16 @@ const DietView: React.FC<Props> = ({ user, userId }) => {
       const budgetVal = parseFloat(budgetAmount);
       const budget = (budgetVal > 0) ? { amount: budgetVal, frequency: budgetFrequency } : undefined;
       
-      const plan = await api.generateDiet(userId, user, dietType, preferences, budget);
+            // Unir preferencias y alergias/intolerancias, evitando vacíos
+            let allPreferences = [...preferences];
+            if (customPreference.trim()) {
+                allPreferences.push(customPreference.trim());
+            }
+            // Si no hay ninguna preferencia ni alergia, agregar "Ninguna"
+            if (allPreferences.length === 0) {
+                allPreferences = ["Ninguna"];
+            }
+            const plan = await api.generateDiet(userId, user, dietType, allPreferences, budget);
       clearTimeout(timeoutId);
       
       if (!plan) {
@@ -685,12 +694,14 @@ const DietView: React.FC<Props> = ({ user, userId }) => {
                                 type="text" 
                                 value={customPreference}
                                 onChange={(e) => setCustomPreference(e.target.value)}
-                                placeholder="Ej: Alergia al maní..."
+                                placeholder="Ej: Alergia a lácteos, intolerancia al gluten, sin huevo..."
                                 className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-green-500 outline-none"
                                 onKeyDown={(e) => e.key === 'Enter' && addCustomPreference()}
                             />
                             <button 
-                                onClick={addCustomPreference}
+                                                                onClick={() => {
+                                                                    if (customPreference.trim()) addCustomPreference();
+                                                                }}
                                 className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-2 rounded-lg border border-slate-700 transition-colors"
                             >
                                 +
@@ -817,13 +828,24 @@ const DietView: React.FC<Props> = ({ user, userId }) => {
                         </div>
                     </div>
                     {preferences.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mt-4 no-print">
-                            {preferences.map(p => (
-                                <span key={p} className="text-[10px] font-bold bg-white/5 border border-white/10 px-2 py-1 rounded-md text-slate-400 uppercase tracking-wide">
-                                    {p}
-                                </span>
-                            ))}
-                        </div>
+                                        <div className="flex flex-wrap gap-2 mt-4 no-print">
+                                                {(preferences.length > 0 || customPreference.trim()) ? (
+                                                    <>
+                                                        {preferences.map(p => (
+                                                            <span key={p} className="text-[10px] font-bold bg-white/5 border border-white/10 px-2 py-1 rounded-md text-slate-400 uppercase tracking-wide">
+                                                                {p}
+                                                            </span>
+                                                        ))}
+                                                        {customPreference.trim() && (
+                                                            <span className="text-[10px] font-bold bg-white/5 border border-white/10 px-2 py-1 rounded-md text-slate-400 uppercase tracking-wide">
+                                                                {customPreference.trim()}
+                                                            </span>
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    <span className="text-[10px] font-bold bg-white/5 border border-white/10 px-2 py-1 rounded-md text-slate-400 uppercase tracking-wide">Ninguna</span>
+                                                )}
+                                        </div>
                     )}
                     {budgetAmount && (
                          <div className="flex items-center gap-2 mt-4 text-xs font-bold text-green-300 bg-green-500/10 px-3 py-1.5 rounded-lg border border-green-500/20 w-fit">

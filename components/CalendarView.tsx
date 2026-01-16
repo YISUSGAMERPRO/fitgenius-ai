@@ -1244,6 +1244,30 @@ const CalendarView: React.FC<Props> = ({ userId, onNavigate }) => {
              
              <div className="p-4 sm:p-6 overflow-y-auto flex-1 custom-scrollbar">
                  {activeTab === 'workout' && (
+                     // Botón para generar rutina si NO hay plan activo
+                     !activeWorkout && (
+                         <button
+                             className="w-full py-3 mb-4 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold text-sm shadow-lg shadow-brand-500/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.02]"
+                             onClick={async () => {
+                                 if (!userProfile) return alert('Completa tu perfil antes de generar una rutina.');
+                                 try {
+                                     // Lógica mínima: tipo por defecto y sin preferencias
+                                     const plan = await api.generateWorkout(userId, userProfile, 'Full Body');
+                                     if (plan) {
+                                         plan.startDate = new Date().toISOString();
+                                         localStorage.setItem(`fitgenius_workout_${userId}`, JSON.stringify(plan));
+                                         setActiveWorkout(plan);
+                                         alert('¡Rutina generada con éxito!');
+                                     }
+                                 } catch (e) {
+                                     alert('Error generando rutina. Intenta de nuevo.');
+                                 }
+                             }}
+                         >
+                             <Dumbbell className="w-4 h-4" /> Generar Rutina Inicial
+                         </button>
+                     )
+                     // ---
                      selectedLogs.length > 0 ? (
                      <div className="space-y-6">
                         {/* ... (Existing Logs Display) ... */}
@@ -1385,6 +1409,30 @@ const CalendarView: React.FC<Props> = ({ userId, onNavigate }) => {
                  ))}
 
                  {activeTab === 'diet' && (
+                     // Botón para generar dieta si NO hay plan activo
+                     !activeDiet && (
+                         <button
+                             className="w-full py-3 mb-4 bg-orange-600 hover:bg-orange-500 text-white rounded-xl font-bold text-sm shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.02]"
+                             onClick={async () => {
+                                 if (!userProfile) return alert('Completa tu perfil antes de generar una dieta.');
+                                 try {
+                                     // Lógica mínima: tipo por defecto y sin preferencias
+                                     const plan = await api.generateDiet(userId, userProfile, 'Déficit Calórico (Pérdida de Peso)');
+                                     if (plan) {
+                                         plan.startDate = new Date().toISOString();
+                                         localStorage.setItem(`fitgenius_diet_${userId}`, JSON.stringify(plan));
+                                         setActiveDiet(plan);
+                                         alert('¡Dieta generada con éxito!');
+                                     }
+                                 } catch (e) {
+                                     alert('Error generando dieta. Intenta de nuevo.');
+                                 }
+                             }}
+                         >
+                             <Utensils className="w-4 h-4" /> Generar Dieta Inicial
+                         </button>
+                     )
+                     // ---
                      plannedDietDay ? (
                          <div className="space-y-4 animate-fadeIn">
                              <div className="bg-orange-500/10 border border-orange-500/20 p-4 rounded-xl mb-4 relative overflow-hidden">

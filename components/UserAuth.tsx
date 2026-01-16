@@ -103,7 +103,7 @@ const UserAuth: React.FC<Props> = ({ onLogin, onAdminAccess }) => {
                     <input 
                         type="email" 
                         value={email}
-                        onChange={e => setEmail(e.target.value)}
+                        onChange={e => setEmail(e.target.value.trim())}
                         className="w-full bg-slate-800/50 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-white outline-none focus:border-brand-500 transition-all placeholder-slate-600"
                         placeholder="tu@email.com"
                         required
@@ -122,6 +122,7 @@ const UserAuth: React.FC<Props> = ({ onLogin, onAdminAccess }) => {
                         className="w-full bg-slate-800/50 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-white outline-none focus:border-brand-500 transition-all placeholder-slate-600"
                         placeholder="••••••••"
                         required
+                        minLength={6}
                     />
                 </div>
             </div>

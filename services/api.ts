@@ -190,6 +190,7 @@ export const api = {
             selectedDays?: string[];
             focus?: string;
             duration?: number;
+            knowledgeLevel?: string;
         }
     ): Promise<any> => {
         try {
@@ -205,7 +206,8 @@ export const api = {
                     frequency: options?.frequency,
                     selectedDays: options?.selectedDays,
                     focus: options?.focus,
-                    duration: options?.duration
+                    duration: options?.duration,
+                    knowledgeLevel: options?.knowledgeLevel
                 })
             });
             
@@ -224,15 +226,15 @@ export const api = {
         }
     },
 
-    generateDiet: async (userId: string, profile: UserProfile, dietType: string, preferences?: string[], budget?: any): Promise<any> => {
+    generateDiet: async (userId: string, profile: UserProfile, dietType: string, preferences?: string[], budget?: any, location?: string): Promise<any> => {
         try {
             console.log('📤 Enviando solicitud de generación de dieta al servidor...');
-            console.log('Datos enviados:', { userId, profile, dietType, preferences, budget });
+            console.log('Datos enviados:', { userId, profile, dietType, preferences, budget, location });
             // Usar el servidor backend (Railway/localhost)
             const res = await fetch(`${API_BASE_URL}/generate-diet`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId, profile, dietType, preferences, budget })
+                body: JSON.stringify({ userId, profile, dietType, preferences, budget, location })
             });
             
             if (!res.ok) {

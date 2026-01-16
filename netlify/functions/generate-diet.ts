@@ -137,7 +137,7 @@ const handler: Handler = async (event) => {
   }
 
   try {
-    const { userId, profile, dietType, preferences, budget, mealsPerDay } = JSON.parse(event.body || '{}');
+    const { userId, profile, dietType, preferences, budget, mealsPerDay, location } = JSON.parse(event.body || '{}');
     
     if (!userId || !profile || !dietType) {
       return {
@@ -168,6 +168,13 @@ const handler: Handler = async (event) => {
       ? `RESTRICCIONES/PREFERENCIAS OBLIGATORIAS: ${preferences.join(', ')}. RESPETA ESTRICTAMENTE.`
       : 'Sin preferencias específicas.';
     
+
+    // Ubicación: ciudad, país, región, etc.
+    const userLocation = location || profile.location || '';
+    const locationText = userLocation
+      ? `UBICACIÓN: ${userLocation}. Usa ingredientes y precios promedio de la zona. Prioriza alimentos locales y económicos según la región. Ajusta el menú y la lista de compras a la disponibilidad y costo real de insumos en esa ubicación.`
+      : '';
+
     const budgetText = budget && budget.amount > 0
       ? `PRESUPUESTO: ${budget.amount} ${budget.frequency}. PRIORIZA ingredientes económicos y accesibles.`
       : '';
@@ -188,6 +195,7 @@ IMPORTANTE: Crea plan ÚNICO Y COMPLETAMENTE PERSONALIZADO. NO plantillas genér
 - **IMC: ${imcData.value} - ${imcData.category}**
 - Objetivo: ${profile.goal} | Actividad: ${profile.activityLevel}
 - Tipo de cuerpo: ${profile.bodyType || 'No especificado'}
+${userLocation ? `\n- Ubicación: ${userLocation}` : ''}
 
 ## MACROS CIENTÍFICAMENTE CALCULADOS:
 - Calorías: ${dietMacros.calories} kcal
@@ -198,6 +206,7 @@ IMPORTANTE: Crea plan ÚNICO Y COMPLETAMENTE PERSONALIZADO. NO plantillas genér
 ## DIETA: ${dietType}
 ${preferencesText}
 ${budgetText}
+${locationText}
 ${healthConditions}
 
 ## COMIDAS: ${mealCount} diarias

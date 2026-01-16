@@ -166,6 +166,69 @@ const WORKOUT_CONFIG: Record<string, {
     repsRange: "20-30 golpes/kicks x round",
     restRange: [30, 60],
     volumeLandmark: "Cardio, fuerza y potencia"
+  },
+  "Fútbol (Rendimiento)": {
+    exercisesPerDay: 8,
+    compoundExercises: 3,
+    accessoryExercises: 5,
+    setsRange: [3, 5],
+    repsRange: "8-15",
+    restRange: [30, 90],
+    volumeLandmark: "Pliometría, sprints, core, tren inferior, prevención lesiones"
+  },
+  "Vóley (Rendimiento)": {
+    exercisesPerDay: 8,
+    compoundExercises: 2,
+    accessoryExercises: 6,
+    setsRange: [3, 5],
+    repsRange: "8-15",
+    restRange: [30, 90],
+    volumeLandmark: "Salto, core, hombros, pliometría, reacción"
+  },
+  "Básquet (Rendimiento)": {
+    exercisesPerDay: 8,
+    compoundExercises: 3,
+    accessoryExercises: 5,
+    setsRange: [3, 5],
+    repsRange: "8-15",
+    restRange: [30, 90],
+    volumeLandmark: "Explosividad, agilidad, core, tren inferior"
+  },
+  "Tenis (Rendimiento)": {
+    exercisesPerDay: 8,
+    compoundExercises: 2,
+    accessoryExercises: 6,
+    setsRange: [3, 5],
+    repsRange: "8-15",
+    restRange: [30, 90],
+    volumeLandmark: "Agilidad, core, muñeca, reacción, tren superior/inferior"
+  },
+  "Artes Marciales": {
+    exercisesPerDay: 8,
+    compoundExercises: 3,
+    accessoryExercises: 5,
+    setsRange: [3, 5],
+    repsRange: "8-15",
+    restRange: [30, 90],
+    volumeLandmark: "Potencia, velocidad, flexibilidad, circuitos"
+  },
+  "Natación": {
+    exercisesPerDay: 8,
+    compoundExercises: 2,
+    accessoryExercises: 6,
+    setsRange: [3, 5],
+    repsRange: "8-15",
+    restRange: [30, 90],
+    volumeLandmark: "Core, hombros, movilidad, fuerza funcional"
+  },
+  "Running / Atletismo": {
+    exercisesPerDay: 8,
+    compoundExercises: 2,
+    accessoryExercises: 6,
+    setsRange: [3, 5],
+    repsRange: "8-15",
+    restRange: [30, 90],
+    volumeLandmark: "Fuerza tren inferior, core, técnica, prevención lesiones"
   }
 };
 
@@ -192,7 +255,7 @@ const handler: Handler = async (event) => {
   }
 
   try {
-    const { userId, profile, workoutType, frequency, selectedDays, focus, duration } = JSON.parse(event.body || '{}');
+    const { userId, profile, workoutType, frequency, selectedDays, focus, duration, knowledgeLevel } = JSON.parse(event.body || '{}');
     
     if (!userId || !profile || !workoutType) {
       return {
@@ -224,11 +287,14 @@ const handler: Handler = async (event) => {
     const muscularFocus = focus || '';
     const cycleDuration = duration || 12;
     
-    const difficultyLevel = profile.activityLevel === 'Sedentario' || profile.activityLevel === 'Ligero (1-2 días/semana)' 
-      ? 'Principiante' 
-      : profile.activityLevel === 'Atleta profesional' 
-        ? 'Avanzado' 
-        : 'Intermedio';
+    // Determinar el nivel de dificultad: si knowledgeLevel viene del frontend, usarlo; si no, deducirlo del perfil
+    const difficultyLevel = knowledgeLevel
+      ? (knowledgeLevel.charAt(0).toUpperCase() + knowledgeLevel.slice(1)) // Capitaliza
+      : profile.activityLevel === 'Sedentario' || profile.activityLevel === 'Ligero (1-2 días/semana)'
+        ? 'Principiante'
+        : profile.activityLevel === 'Atleta profesional'
+          ? 'Avanzado'
+          : 'Intermedio';
     
     const equipmentList = Array.isArray(profile.equipment) 
       ? profile.equipment.join(', ') 

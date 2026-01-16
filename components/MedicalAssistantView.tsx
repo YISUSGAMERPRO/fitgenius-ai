@@ -311,8 +311,10 @@ const MedicalAssistantView: React.FC<Props> = ({ user, userId }) => {
                         style={{ height: '48px' }}
                     />
                     <button
-                        onClick={() => handleSend()}
-                        disabled={loading || !input.trim()}
+                                                onClick={() => {
+                                                    if (input.trim()) handleSend();
+                                                }}
+                                                disabled={loading || !input.trim()}
                         className={`absolute right-1.5 bottom-1.5 p-2 rounded-lg transition-all ${
                             loading || !input.trim() 
                                 ? 'bg-slate-700 text-slate-500 cursor-not-allowed' 
