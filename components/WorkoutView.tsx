@@ -344,7 +344,6 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
     const [sessionSeconds, setSessionSeconds] = useState(0);
     const [isSessionPaused, setIsSessionPaused] = useState(false);
     const [completedSets, setCompletedSets] = useState<Record<string, boolean>>({}); // Key: "exerciseIdx-setIdx"
-    const [completedDays, setCompletedDays] = useState<Record<string, boolean>>({}); // Key: "planId-dayIndex"
     const [showCelebration, setShowCelebration] = useState(false);
     
     // UI State
