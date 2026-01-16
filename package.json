@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
+    "@netlify/functions": "^5.1.2",
     "axios": "^1.6.2",
     "chart.js": "^4.5.1",
     "compression": "^1.8.1",

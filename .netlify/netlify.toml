@@ -29,7 +29,7 @@ functions = "C:\\xampp\\htdocs\\fitgenius-ai\\netlify\\functions"
 
 [functions."*"]
 node_bundler = "esbuild"
-external_node_modules = ["express", "pg", "cors", "@google/genai"]
+external_node_modules = ["express", "pg", "cors", "@google/generative-ai"]
 
 [[redirects]]
 from = "/*"

@@ -256,6 +256,7 @@ const WorkoutView: React.FC<Props> = ({ user, userId }) => {
         restHistory: [] as number[] // Historial de descansos usados (seg)
     });
 
+
     // Calcular métricas cada vez que completedDays o plan cambian
     useEffect(() => {
         if (!plan || !plan.schedule) return;
