@@ -191,6 +191,8 @@ export const api = {
             focus?: string;
             duration?: number;
             knowledgeLevel?: string;
+            equipment?: string[];
+            sessionTime?: number;
         }
     ): Promise<any> => {
         try {
