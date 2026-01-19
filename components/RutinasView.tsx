@@ -56,6 +56,7 @@ const RutinasView: React.FC<RutinasViewProps> = ({ user, userId }) => {
           knowledgeLevel: nivel,
           focus: focus || undefined,
           equipment: equipo,
+          sessionTime: tiempoSesion,
         }
       );
       setRutina(result);
@@ -185,7 +186,7 @@ const RutinasView: React.FC<RutinasViewProps> = ({ user, userId }) => {
       </div>
 
       {/* Selector de duración */}
-      <div className="mb-6 w-full max-w-xs">
+      <div className="mb-3 w-full max-w-xs">
         <label className="block text-left text-xs font-bold text-slate-400 uppercase mb-2">Duración del plan</label>
         <select
           className="w-full p-3 rounded-xl bg-slate-800 text-white border border-slate-700 focus:border-brand-500 outline-none"
@@ -197,6 +198,23 @@ const RutinasView: React.FC<RutinasViewProps> = ({ user, userId }) => {
           <option value={12}>12 semanas</option>
         </select>
         <p className="text-xs text-slate-500 mt-2 text-left">Elige cuántas semanas quieres seguir el plan.</p>
+      </div>
+
+      {/* Selector de tiempo por sesión */}
+      <div className="mb-6 w-full max-w-xs">
+        <label className="block text-left text-xs font-bold text-slate-400 uppercase mb-2">Tiempo por sesión</label>
+        <select
+          className="w-full p-3 rounded-xl bg-slate-800 text-white border border-slate-700 focus:border-brand-500 outline-none"
+          value={tiempoSesion}
+          onChange={e => setTiempoSesion(Number(e.target.value))}
+        >
+          <option value={30}>30 minutos</option>
+          <option value={45}>45 minutos</option>
+          <option value={60}>60 minutos</option>
+          <option value={75}>75 minutos</option>
+          <option value={90}>90 minutos</option>
+        </select>
+        <p className="text-xs text-slate-500 mt-2 text-left">¿Cuánto tiempo quieres dedicar a cada sesión?</p>
       </div>
 
       {/* Selector de días preferidos */}
