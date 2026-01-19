@@ -14,6 +14,7 @@ const RutinasView: React.FC<RutinasViewProps> = ({ user, userId }) => {
 
   const [tipo, setTipo] = useState('fullbody');
   const [duracion, setDuracion] = useState(4); // semanas
+   const [tiempoSesion, setTiempoSesion] = useState(60); // minutos por sesión
   const [dias, setDias] = useState<string[]>(['Lunes', 'Miércoles', 'Viernes']);
 
   const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
