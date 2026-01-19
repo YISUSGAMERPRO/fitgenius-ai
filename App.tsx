@@ -134,8 +134,10 @@ function App() {
           </div>
         </div>
         <nav className="flex-1 px-4 py-4 space-y-2">
+          {/*
           <NavButton active={view === 'calendar'} onClick={() => handleViewChange('calendar')} icon={<LayoutDashboard />} label="Diario" />
           <NavButton active={view === 'workout'} onClick={() => handleViewChange('workout')} icon={<Dumbbell />} label="Rutinas" />
+          */}
           <NavButton active={view === 'diet'} onClick={() => handleViewChange('diet')} icon={<Utensils />} label="Nutrición" />
           <NavButton active={view === 'medical'} onClick={() => handleViewChange('medical')} icon={<Stethoscope />} label="Médico" />
         </nav>
@@ -159,11 +161,31 @@ function App() {
           </button>
         </div>
         <div className="p-4 md:p-8">
-          {view === 'calendar' && <CalendarView userId={currentUserAccount!.id} onNavigate={handleViewChange} />}
-          {view === 'workout' && <WorkoutView user={user!} userId={currentUserAccount!.id} />}
-          {view === 'diet' && <DietView user={user!} userId={currentUserAccount!.id} />}
-          {view === 'medical' && <MedicalAssistantView user={user!} userId={currentUserAccount!.id} />}
+          {/*
+          view === 'calendar' && (
+            <CalendarView userId={currentUserAccount?.id || ''} onNavigate={handleViewChange} />
+          )
+          view === 'workout' && (
+            <WorkoutView user={user!} userId={currentUserAccount?.id || ''} />
+          )
+          */}
+          {view === 'diet' && (
+            <DietView user={user!} userId={currentUserAccount?.id || ''} />
+          )}
+          {view === 'medical' && (
+            <MedicalAssistantView user={user!} userId={currentUserAccount?.id || ''} />
+          )}
         </div>
+
+        {/* NUEVO: Estructura base para futuras funcionalidades */}
+        {/* Puedes crear aquí nuevos apartados, vistas o módulos según lo que necesites */}
+        {/* Ejemplo de plantilla para un nuevo módulo:
+        import NewFeatureView from './components/NewFeatureView';
+        ...
+        {view === 'newfeature' && (
+          <NewFeatureView user={user!} userId={currentUserAccount?.id || ''} />
+        )}
+        */}
 
         {/* Drawer lateral móvil */}
         <div className={`md:hidden fixed inset-0 z-30 ${isMobileNavOpen ? '' : 'pointer-events-none'}`}>
@@ -181,8 +203,10 @@ function App() {
               </button>
             </div>
             <nav className="px-3 py-4 space-y-2">
+              {/*
               <NavButton active={view === 'calendar'} onClick={() => { handleViewChange('calendar'); setIsMobileNavOpen(false); }} icon={<LayoutDashboard />} label="Diario" />
               <NavButton active={view === 'workout'} onClick={() => { handleViewChange('workout'); setIsMobileNavOpen(false); }} icon={<Dumbbell />} label="Rutinas" />
+              */}
               <NavButton active={view === 'diet'} onClick={() => { handleViewChange('diet'); setIsMobileNavOpen(false); }} icon={<Utensils />} label="Nutrición" />
               <NavButton active={view === 'medical'} onClick={() => { handleViewChange('medical'); setIsMobileNavOpen(false); }} icon={<Stethoscope />} label="Médico" />
             </nav>

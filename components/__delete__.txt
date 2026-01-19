@@ -1,0 +1,1 @@
+Eliminando archivos de rutinas y seguimiento diario para limpiar el proyecto.
