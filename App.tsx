@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { UserProfile, ViewState, UserAccount, WorkoutPlan, DietPlan } from './types';
 import ProfileSetup from './components/ProfileSetup';
-import WorkoutView from './components/WorkoutView';
+import RutinasView from './components/RutinasView';
 import DietView from './components/DietView';
 import CalendarView from './components/CalendarView';
 import GymAdminView from './components/GymAdminView';
@@ -134,10 +134,8 @@ function App() {
           </div>
         </div>
         <nav className="flex-1 px-4 py-4 space-y-2">
-          {/*
-          <NavButton active={view === 'calendar'} onClick={() => handleViewChange('calendar')} icon={<LayoutDashboard />} label="Diario" />
+          {/* <NavButton active={view === 'calendar'} onClick={() => handleViewChange('calendar')} icon={<LayoutDashboard />} label="Diario" /> */}
           <NavButton active={view === 'workout'} onClick={() => handleViewChange('workout')} icon={<Dumbbell />} label="Rutinas" />
-          */}
           <NavButton active={view === 'diet'} onClick={() => handleViewChange('diet')} icon={<Utensils />} label="Nutrición" />
           <NavButton active={view === 'medical'} onClick={() => handleViewChange('medical')} icon={<Stethoscope />} label="Médico" />
         </nav>
@@ -169,6 +167,9 @@ function App() {
             <WorkoutView user={user!} userId={currentUserAccount?.id || ''} />
           )
           */}
+          {view === 'workout' && user && currentUserAccount && (
+            <RutinasView user={user} userId={currentUserAccount.id} />
+          )}
           {view === 'diet' && (
             <DietView user={user!} userId={currentUserAccount?.id || ''} />
           )}
@@ -203,10 +204,8 @@ function App() {
               </button>
             </div>
             <nav className="px-3 py-4 space-y-2">
-              {/*
-              <NavButton active={view === 'calendar'} onClick={() => { handleViewChange('calendar'); setIsMobileNavOpen(false); }} icon={<LayoutDashboard />} label="Diario" />
+              {/* <NavButton active={view === 'calendar'} onClick={() => { handleViewChange('calendar'); setIsMobileNavOpen(false); }} icon={<LayoutDashboard />} label="Diario" /> */}
               <NavButton active={view === 'workout'} onClick={() => { handleViewChange('workout'); setIsMobileNavOpen(false); }} icon={<Dumbbell />} label="Rutinas" />
-              */}
               <NavButton active={view === 'diet'} onClick={() => { handleViewChange('diet'); setIsMobileNavOpen(false); }} icon={<Utensils />} label="Nutrición" />
               <NavButton active={view === 'medical'} onClick={() => { handleViewChange('medical'); setIsMobileNavOpen(false); }} icon={<Stethoscope />} label="Médico" />
             </nav>

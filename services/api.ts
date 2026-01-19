@@ -207,7 +207,8 @@ export const api = {
                     selectedDays: options?.selectedDays,
                     focus: options?.focus,
                     duration: options?.duration,
-                    knowledgeLevel: options?.knowledgeLevel
+                    knowledgeLevel: options?.knowledgeLevel,
+                    equipment: options?.equipment
                 })
             });
             
